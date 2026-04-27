@@ -689,23 +689,27 @@
   }
 
   // ── Setup modes ──
+  function resetBtn(selector, label) {
+    var btn = document.querySelector(selector + ' .btn-primary');
+    if (btn) { btn.textContent = label; btn.disabled = false; }
+  }
+
   function showMode(mode) {
-    document.getElementById('mode-join').style.display = 'none';
-    document.getElementById('mode-switch').style.display = 'none';
-    document.getElementById('mode-create').style.display = 'none';
-    document.getElementById('mode-' + mode).style.display = 'block';
-    const subtitles = {
-      join: 'You've been invited! Just enter your name to join your family's wishlist.',
-      switch: 'Welcome back — who's signing in?',
-      create: 'Set up a new family wishlist. You'll be able to invite others via a link.'
+    ['join','switch','create'].forEach(function(m) {
+      document.getElementById('mode-' + m).style.display = (m === mode) ? 'block' : 'none';
+    });
+    var subtitles = {
+      join: "You've been invited! Just enter your name to join your family's wishlist.",
+      switch: "Welcome back — who's signing in?",
+      create: "Set up a new family wishlist. You'll be able to invite others via a link."
     };
-    document.getElementById('setup-subtitle').textContent = subtitles[mode];
+    document.getElementById('setup-subtitle').textContent = subtitles[mode] || '';
   }
 
   async function handleJoin() {
-    const name = document.getElementById('join-name-input').value.trim();
+    var name = document.getElementById('join-name-input').value.trim();
     if (!name) { showToast('Please enter your name'); return; }
-    const btn = document.querySelector('#mode-join .btn-primary');
+    var btn = document.querySelector('#mode-join .btn-primary');
     btn.textContent = 'Joining...'; btn.disabled = true;
     try {
       currentUser = name;
@@ -715,13 +719,14 @@
       pendingKey = ''; pendingBin = '';
       startApp();
     } catch(e) {
+      console.error('Join failed:', e);
       showToast('Could not connect. The invite link may be invalid.');
-      btn.textContent = 'Join wishlist →'; btn.disabled = false;
+      resetBtn('#mode-join', 'Join wishlist →');
     }
   }
 
   function handleSwitch() {
-    const name = document.getElementById('switch-name-input').value.trim();
+    var name = document.getElementById('switch-name-input').value.trim();
     if (!name) { showToast('Please enter your name'); return; }
     currentUser = name;
     saveConfig();
@@ -729,10 +734,10 @@
   }
 
   async function handleCreate() {
-    const name = document.getElementById('create-name-input').value.trim();
-    const key = document.getElementById('create-api-key-input').value.trim();
+    var name = document.getElementById('create-name-input').value.trim();
+    var key = document.getElementById('create-api-key-input').value.trim();
     if (!name || !key) { showToast('Please enter your name and API key'); return; }
-    const btn = document.querySelector('#mode-create .btn-primary');
+    var btn = document.querySelector('#mode-create .btn-primary');
     btn.textContent = 'Creating...'; btn.disabled = true;
     try {
       apiKey = key; currentUser = name;
@@ -740,21 +745,23 @@
       saveConfig();
       startApp();
     } catch(e) {
+      console.error('Create failed:', e);
+      apiKey = ''; binId = ''; currentUser = '';
       showToast('Failed to create wishlist. Check your API key.');
-      btn.textContent = 'Create wishlist →'; btn.disabled = false;
+      resetBtn('#mode-create', 'Create wishlist →');
     }
   }
 
   function logout() {
     clearInterval(pollingInterval);
     pollingInterval = null;
-    const savedKey = apiKey;
-    const savedBin = binId;
+    var savedKey = apiKey;
+    var savedBin = binId;
     currentUser = ''; allWishes = [];
+    apiKey = savedKey; binId = savedBin;
     localStorage.setItem('fw_apikey', savedKey);
     localStorage.setItem('fw_binid', savedBin);
     localStorage.removeItem('fw_user');
-    apiKey = savedKey; binId = savedBin;
     document.getElementById('switch-name-input').value = '';
     document.getElementById('app').style.display = 'none';
     document.getElementById('setup-screen').style.display = 'block';
@@ -1060,7 +1067,7 @@
   // ── Boot ──
   let pendingKey = '', pendingBin = '';
   document.addEventListener('DOMContentLoaded', function() {
-  loadConfig();
+    loadConfig();
   const urlParams = new URLSearchParams(location.search);
   const urlKey = urlParams.get('key');
   const urlBin = urlParams.get('bin');
