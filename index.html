@@ -486,33 +486,49 @@
   <div style="position:absolute;top:1rem;right:1.25rem;font-size:0.72rem;color:var(--ink-muted);">v1.0.0</div>
   <div style="font-size:2.5rem;margin-bottom:0.75rem;">🎁</div>
   <h1>Family <span style="color:var(--accent-mid);font-style:italic;">Wishlist</span></h1>
-  <p>A shared space for your family to manage wishlists — gifts are a surprise, but picking them doesn't have to be.</p>
+  <p id="setup-subtitle">A shared space for your family to manage wishlists — gifts are a surprise, but picking them doesn't have to be.</p>
 
-  <div id="setup-step-1">
+  <!-- Mode: JOIN (invite link) — name only -->
+  <div id="mode-join" style="display:none;">
     <div class="form-group">
       <label>Your name</label>
-      <input type="text" id="user-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+      <input type="text" id="join-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
     </div>
-    <div class="form-group">
-      <label>JSONBin API Key <span style="color:var(--ink-muted);font-weight:400;text-transform:none;">(shared with family)</span></label>
-      <input type="text" id="api-key-input" placeholder="$2a$10$..." />
-    </div>
-    <div class="form-group">
-      <label>Bin ID <span style="color:var(--ink-muted);font-weight:400;text-transform:none;">(leave blank to create new)</span></label>
-      <input type="text" id="bin-id-input" placeholder="68abc123..." />
-    </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleSetup()">
-      Get Started →
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleJoin()">
+      Join wishlist →
     </button>
+  </div>
 
-    <div class="config-note">
-      <strong>First time setup:</strong><br/>
-      1. Create a free account at <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br/>
-      2. Copy your <strong>Master API Key</strong> (under API Keys in dashboard)<br/>
-      3. Leave Bin ID blank — one will be created automatically<br/>
-      4. Share the API Key + Bin ID with family so they can join<br/>
-      <br/>
-      Everyone uses the same API key and bin ID to see the same data.
+  <!-- Mode: SWITCH USER — name only, credentials kept -->
+  <div id="mode-switch" style="display:none;">
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="switch-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleSwitch()">
+      Sign in →
+    </button>
+  </div>
+
+  <!-- Mode: CREATE — full admin setup -->
+  <div id="mode-create" style="display:none;">
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="create-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+    </div>
+    <div class="form-group">
+      <label>JSONBin API Key</label>
+      <input type="text" id="create-api-key-input" placeholder="$2a$10$..." />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleCreate()">
+      Create wishlist →
+    </button>
+    <div class="config-note" style="margin-top:1rem;">
+      <strong>Get a free API key:</strong><br/>
+      1. Sign up at <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br/>
+      2. Copy your <strong>Master API Key</strong> from the dashboard<br/>
+      3. Paste it above — your wishlist will be created automatically<br/>
+      4. Use the 🔗 Invite link button to add family members
     </div>
   </div>
 </div>
@@ -672,48 +688,77 @@
     return j.metadata.id;
   }
 
-  // ── Setup ──
-  async function handleSetup() {
-    const name = document.getElementById('user-name-input').value.trim();
-    const key = document.getElementById('api-key-input').value.trim();
-    const bid = document.getElementById('bin-id-input').value.trim();
-    if (!name || !key) { showToast('Please enter your name and API key'); return; }
+  // ── Setup modes ──
+  function showMode(mode) {
+    document.getElementById('mode-join').style.display = 'none';
+    document.getElementById('mode-switch').style.display = 'none';
+    document.getElementById('mode-create').style.display = 'none';
+    document.getElementById('mode-' + mode).style.display = 'block';
+    const subtitles = {
+      join: 'You've been invited! Just enter your name to join your family's wishlist.',
+      switch: 'Welcome back — who's signing in?',
+      create: 'Set up a new family wishlist. You'll be able to invite others via a link.'
+    };
+    document.getElementById('setup-subtitle').textContent = subtitles[mode];
+  }
 
-    const btn = document.querySelector('#setup-step-1 .btn-primary');
-    btn.textContent = 'Connecting...';
-    btn.disabled = true;
-
+  async function handleJoin() {
+    const name = document.getElementById('join-name-input').value.trim();
+    if (!name) { showToast('Please enter your name'); return; }
+    const btn = document.querySelector('#mode-join .btn-primary');
+    btn.textContent = 'Joining...'; btn.disabled = true;
     try {
-      apiKey = key;
       currentUser = name;
-      if (bid) {
-        binId = bid;
-        await readBin(); // verify it works
-      } else {
-        binId = await createBin();
-      }
+      apiKey = pendingKey; binId = pendingBin;
+      await readBin();
+      saveConfig();
+      pendingKey = ''; pendingBin = '';
+      startApp();
+    } catch(e) {
+      showToast('Could not connect. The invite link may be invalid.');
+      btn.textContent = 'Join wishlist →'; btn.disabled = false;
+    }
+  }
+
+  function handleSwitch() {
+    const name = document.getElementById('switch-name-input').value.trim();
+    if (!name) { showToast('Please enter your name'); return; }
+    currentUser = name;
+    saveConfig();
+    startApp();
+  }
+
+  async function handleCreate() {
+    const name = document.getElementById('create-name-input').value.trim();
+    const key = document.getElementById('create-api-key-input').value.trim();
+    if (!name || !key) { showToast('Please enter your name and API key'); return; }
+    const btn = document.querySelector('#mode-create .btn-primary');
+    btn.textContent = 'Creating...'; btn.disabled = true;
+    try {
+      apiKey = key; currentUser = name;
+      binId = await createBin();
       saveConfig();
       startApp();
     } catch(e) {
-      showToast('Connection failed. Check your API key and Bin ID.');
-      btn.textContent = 'Get Started →';
-      btn.disabled = false;
+      showToast('Failed to create wishlist. Check your API key.');
+      btn.textContent = 'Create wishlist →'; btn.disabled = false;
     }
   }
 
   function logout() {
     clearInterval(pollingInterval);
     pollingInterval = null;
-    currentUser = ''; apiKey = ''; binId = ''; allWishes = [];
-    localStorage.clear();
-    const btn = document.querySelector('#setup-step-1 .btn-primary');
-    btn.textContent = 'Get Started →';
-    btn.disabled = false;
-    document.getElementById('user-name-input').value = '';
-    document.getElementById('api-key-input').value = '';
-    document.getElementById('bin-id-input').value = '';
+    const savedKey = apiKey;
+    const savedBin = binId;
+    currentUser = ''; allWishes = [];
+    localStorage.setItem('fw_apikey', savedKey);
+    localStorage.setItem('fw_binid', savedBin);
+    localStorage.removeItem('fw_user');
+    apiKey = savedKey; binId = savedBin;
+    document.getElementById('switch-name-input').value = '';
     document.getElementById('app').style.display = 'none';
     document.getElementById('setup-screen').style.display = 'block';
+    showMode('switch');
   }
 
   // ── App init ──
@@ -1013,17 +1058,22 @@
   }
 
   // ── Boot ──
+  let pendingKey = '', pendingBin = '';
   loadConfig();
   const urlParams = new URLSearchParams(location.search);
   const urlKey = urlParams.get('key');
   const urlBin = urlParams.get('bin');
-  if (urlKey && urlBin && !currentUser) {
-    document.getElementById('api-key-input').value = urlKey;
-    document.getElementById('bin-id-input').value = urlBin;
-    history.replaceState(null, '', location.pathname);
-  }
+  history.replaceState(null, '', location.pathname);
+
   if (currentUser && apiKey && binId) {
     startApp();
+  } else if (urlKey && urlBin) {
+    pendingKey = urlKey; pendingBin = urlBin;
+    showMode('join');
+  } else if (apiKey && binId) {
+    showMode('switch');
+  } else {
+    showMode('create');
   }
 </script>
 </body>
