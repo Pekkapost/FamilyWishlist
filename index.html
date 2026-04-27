@@ -511,7 +511,7 @@
   </div>
 
   <!-- Mode: CREATE — full admin setup -->
-  <div id="mode-create" style="display:none;">
+  <div id="mode-create">
     <div class="form-group">
       <label>Your name</label>
       <input type="text" id="create-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
@@ -1059,6 +1059,7 @@
 
   // ── Boot ──
   let pendingKey = '', pendingBin = '';
+  document.addEventListener('DOMContentLoaded', function() {
   loadConfig();
   const urlParams = new URLSearchParams(location.search);
   const urlKey = urlParams.get('key');
@@ -1075,6 +1076,7 @@
   } else {
     showMode('create');
   }
+  }); // end DOMContentLoaded
 </script>
 </body>
 </html>
