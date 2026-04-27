@@ -522,6 +522,7 @@
     <div class="logo">🎁 Family <span>Wishlist</span></div>
     <div class="header-actions">
       <span class="user-badge" id="header-user"></span>
+      <button class="btn btn-sm" onclick="copyInviteLink()" id="invite-btn">🔗 Invite link</button>
       <button class="btn btn-sm" onclick="showAddModal()">+ Add wish</button>
       <button class="btn btn-sm btn-ghost" onclick="logout()" title="Switch user">⎋</button>
     </div>
@@ -702,10 +703,17 @@
 
   function logout() {
     clearInterval(pollingInterval);
+    pollingInterval = null;
+    currentUser = ''; apiKey = ''; binId = ''; allWishes = [];
     localStorage.clear();
+    const btn = document.querySelector('#setup-step-1 .btn-primary');
+    btn.textContent = 'Get Started →';
+    btn.disabled = false;
+    document.getElementById('user-name-input').value = '';
+    document.getElementById('api-key-input').value = '';
+    document.getElementById('bin-id-input').value = '';
     document.getElementById('app').style.display = 'none';
     document.getElementById('setup-screen').style.display = 'block';
-    document.getElementById('user-name-input').value = '';
   }
 
   // ── App init ──
@@ -991,8 +999,29 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
+  // ── Invite link ──
+  function copyInviteLink() {
+    const params = new URLSearchParams({ key: apiKey, bin: binId });
+    const url = location.origin + location.pathname + '?' + params.toString();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('invite-btn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = '🔗 Invite link'; }, 2000);
+    }).catch(() => {
+      prompt('Copy this invite link:', url);
+    });
+  }
+
   // ── Boot ──
   loadConfig();
+  const urlParams = new URLSearchParams(location.search);
+  const urlKey = urlParams.get('key');
+  const urlBin = urlParams.get('bin');
+  if (urlKey && urlBin && !currentUser) {
+    document.getElementById('api-key-input').value = urlKey;
+    document.getElementById('bin-id-input').value = urlBin;
+    history.replaceState(null, '', location.pathname);
+  }
   if (currentUser && apiKey && binId) {
     startApp();
   }
