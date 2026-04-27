@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Wishlist</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #FAF7F2;
+      --warm-white: #FFFEFB;
+      --ink: #1C1917;
+      --ink-soft: #57534E;
+      --ink-muted: #A8A29E;
+      --border: #E7E4DF;
+      --border-strong: #C4BFB9;
+      --accent: #C2410C;
+      --accent-light: #FFF1EC;
+      --accent-mid: #EA580C;
+      --green: #166534;
+      --green-bg: #F0FDF4;
+      --card-bg: #FFFEFB;
+      --tag-bg: #F3EFE9;
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--warm-white);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Lora', serif;
+      font-size: 1.5rem;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .logo span { color: var(--accent-mid); }
+    .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .user-badge {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--ink-soft);
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
+    }
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: var(--warm-white);
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn:hover { background: var(--tag-bg); }
+    .btn-primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    .btn-primary:hover { background: #292524; }
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-accent:hover { background: var(--accent-mid); border-color: var(--accent-mid); }
+    .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.78rem; }
+    .btn-ghost {
+      border: none;
+      background: transparent;
+      color: var(--ink-soft);
+      padding: 0.3rem 0.5rem;
+    }
+    .btn-ghost:hover { background: var(--tag-bg); color: var(--ink); }
+
+    /* ── Setup / Login Screen ── */
+    #setup-screen {
+      max-width: 480px;
+      margin: 5rem auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      text-align: center;
+    }
+    #setup-screen h1 {
+      font-family: 'Lora', serif;
+      font-size: 1.9rem;
+      margin-bottom: 0.5rem;
+    }
+    #setup-screen p {
+      color: var(--ink-soft);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .form-group { text-align: left; margin-bottom: 1rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--ink-soft);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      background: var(--warm-white);
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent-mid);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.5rem 0;
+      color: var(--ink-muted);
+      font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .config-note {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--accent-light);
+      border: 1px solid #FED7AA;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #9A3412;
+      text-align: left;
+      line-height: 1.6;
+    }
+    .config-note a { color: var(--accent); }
+    .config-note code {
+      background: rgba(194,65,12,0.1);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    /* ── Main layout ── */
+    #app { display: none; }
+    .main-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: calc(100vh - 58px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--warm-white);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+    }
+    .sidebar-section-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-muted);
+      padding: 0 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: var(--ink-soft);
+      transition: background 0.12s, color 0.12s;
+      margin-bottom: 2px;
+    }
+    .sidebar-item:hover { background: var(--tag-bg); color: var(--ink); }
+    .sidebar-item.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .sidebar-item .count {
+      margin-left: auto;
+      font-size: 0.75rem;
+      background: var(--border);
+      color: var(--ink-soft);
+      padding: 0.1rem 0.45rem;
+      border-radius: 99px;
+    }
+    .sidebar-item.active .count {
+      background: #FED7AA;
+      color: var(--accent);
+    }
+    .sidebar-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
+
+    /* ── Content area ── */
+    .content { padding: 2rem; max-width: 900px; }
+    .content-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+    .content-header h2 {
+      font-family: 'Lora', serif;
+      font-size: 1.6rem;
+      font-weight: 400;
+    }
+    .content-header h2 em { font-style: italic; color: var(--accent-mid); }
+    .content-header p { color: var(--ink-soft); font-size: 0.85rem; margin-top: 0.2rem; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      font-size: 0.8rem;
+      padding: 0.3rem 0.85rem;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--warm-white);
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .filter-chip:hover { border-color: var(--border-strong); color: var(--ink); }
+    .filter-chip.active {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    /* ── Wishlist cards ── */
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .wish-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
+    .wish-card:hover { border-color: var(--border-strong); }
+    .wish-card.claimed { opacity: 0.6; }
+    .wish-card.claimed::after {
+      content: '✓ Claimed';
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      background: var(--green-bg);
+      color: var(--green);
+      padding: 0.2rem 0.55rem;
+      border-radius: 99px;
+      border: 1px solid #BBF7D0;
+    }
+    .wish-card-title {
+      font-family: 'Lora', serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.3;
+      padding-right: 2rem;
+    }
+    .wish-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .priority-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .priority-high { background: var(--accent-mid); }
+    .priority-medium { background: #EAB308; }
+    .priority-low { background: var(--ink-muted); }
+    .tag {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 99px;
+      background: var(--tag-bg);
+      color: var(--ink-soft);
+      border: 1px solid var(--border);
+    }
+    .price-tag {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .wish-card-note {
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      line-height: 1.5;
+      border-top: 1px solid var(--border);
+      padding-top: 0.6rem;
+    }
+    .wish-card-actions {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: auto;
+    }
+    .wish-card-link {
+      font-size: 0.78rem;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .wish-card-link:hover { text-decoration: underline; }
+    .claimed-by {
+      font-size: 0.75rem;
+      color: var(--green);
+      font-weight: 500;
+    }
+    .own-item-badge {
+      font-size: 0.7rem;
+      color: var(--ink-muted);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--ink-muted);
+      grid-column: 1 / -1;
+    }
+    .empty-state h3 {
+      font-family: 'Lora', serif;
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: var(--ink-soft);
+      margin-bottom: 0.5rem;
+    }
+    .empty-state p { font-size: 0.85rem; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(28, 25, 23, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 1rem;
+    }
+    .modal {
+      background: var(--warm-white);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+    }
+    .modal h3 {
+      font-family: 'Lora', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--ink);
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      z-index: 300;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Loading ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-mid);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--ink-muted);
+      font-size: 0.85rem;
+      padding: 2rem;
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 680px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .content { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div id="setup-screen">
+  <div style="font-size:2.5rem;margin-bottom:0.75rem;">🎁</div>
+  <h1>Family <span style="color:var(--accent-mid);font-style:italic;">Wishlist</span></h1>
+  <p>A shared space for your family to manage wishlists — gifts are a surprise, but picking them doesn't have to be.</p>
+
+  <div id="setup-step-1">
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="user-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+    </div>
+    <div class="form-group">
+      <label>JSONBin API Key <span style="color:var(--ink-muted);font-weight:400;text-transform:none;">(shared with family)</span></label>
+      <input type="text" id="api-key-input" placeholder="$2a$10$..." />
+    </div>
+    <div class="form-group">
+      <label>Bin ID <span style="color:var(--ink-muted);font-weight:400;text-transform:none;">(leave blank to create new)</span></label>
+      <input type="text" id="bin-id-input" placeholder="68abc123..." />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleSetup()">
+      Get Started →
+    </button>
+
+    <div class="config-note">
+      <strong>First time setup:</strong><br/>
+      1. Create a free account at <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br/>
+      2. Copy your <strong>Master API Key</strong> (under API Keys in dashboard)<br/>
+      3. Leave Bin ID blank — one will be created automatically<br/>
+      4. Share the API Key + Bin ID with family so they can join<br/>
+      <br/>
+      Everyone uses the same API key and bin ID to see the same data.
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <header>
+    <div class="logo">🎁 Family <span>Wishlist</span></div>
+    <div class="header-actions">
+      <span class="user-badge" id="header-user"></span>
+      <button class="btn btn-sm" onclick="showAddModal()">+ Add wish</button>
+      <button class="btn btn-sm btn-ghost" onclick="logout()" title="Switch user">⎋</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section-label">Browse</div>
+      <div class="sidebar-item active" id="nav-all" onclick="setView('all')">
+        <span>🏠</span> Everyone's list <span class="count" id="count-all">0</span>
+      </div>
+      <div class="sidebar-item" id="nav-mine" onclick="setView('mine')">
+        <span>⭐</span> My wishlist <span class="count" id="count-mine">0</span>
+      </div>
+      <div class="sidebar-item" id="nav-claimed" onclick="setView('claimed')">
+        <span>🎀</span> I'm gifting <span class="count" id="count-claimed">0</span>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section-label">Family</div>
+      <div id="family-nav"></div>
+    </aside>
+
+    <main class="content">
+      <div class="content-header">
+        <div>
+          <h2 id="view-title">Everyone's <em>wishlist</em></h2>
+          <p id="view-subtitle">Items added by the whole family</p>
+        </div>
+        <button class="btn btn-accent" onclick="showAddModal()">+ Add a wish</button>
+      </div>
+
+      <div class="filter-bar">
+        <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
+        <span class="filter-chip" onclick="setFilter('high', this)">🔴 High priority</span>
+        <span class="filter-chip" onclick="setFilter('medium', this)">🟡 Medium</span>
+        <span class="filter-chip" onclick="setFilter('low', this)">⚪ Low</span>
+        <span class="filter-chip" onclick="setFilter('unclaimed', this)">Not yet claimed</span>
+      </div>
+
+      <div class="items-grid" id="items-grid">
+        <div class="loading-row"><span class="spinner"></span> Loading wishes...</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="wish-modal" style="display:none;" onclick="closeModalIfOutside(event)">
+  <div class="modal">
+    <h3 id="modal-title">Add a wish</h3>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group">
+      <label>Item name *</label>
+      <input type="text" id="wish-name" placeholder="e.g. Cozy knit blanket, Kindle Paperwhite..." />
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+      <div class="form-group">
+        <label>Price (approx.)</label>
+        <input type="text" id="wish-price" placeholder="$50" />
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="wish-priority">
+          <option value="high">🔴 High</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="low">⚪ Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Link (optional)</label>
+      <input type="url" id="wish-link" placeholder="https://..." />
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="wish-notes" placeholder="Size, color, specific edition..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWish()">Save wish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ──
+  let currentUser = '';
+  let apiKey = '';
+  let binId = '';
+  let allWishes = [];
+  let currentView = 'all';
+  let currentFilter = 'all';
+  let filterPersonName = null;
+  let pollingInterval = null;
+
+  const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+
+  // ── Persistence ──
+  function saveConfig() {
+    localStorage.setItem('fw_user', currentUser);
+    localStorage.setItem('fw_apikey', apiKey);
+    localStorage.setItem('fw_binid', binId);
+  }
+  function loadConfig() {
+    currentUser = localStorage.getItem('fw_user') || '';
+    apiKey = localStorage.getItem('fw_apikey') || '';
+    binId = localStorage.getItem('fw_binid') || '';
+  }
+
+  // ── JSONBin API ──
+  async function readBin() {
+    const r = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': apiKey }
+    });
+    if (!r.ok) throw new Error(`Read failed: ${r.status}`);
+    const j = await r.json();
+    return j.record;
+  }
+
+  async function writeBin(data) {
+    const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error(`Write failed: ${r.status}`);
+    return (await r.json()).record;
+  }
+
+  async function createBin() {
+    const r = await fetch(`${JSONBIN_BASE}/b`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey,
+        'X-Bin-Name': 'family-wishlist',
+        'X-Bin-Private': 'true'
+      },
+      body: JSON.stringify({ wishes: [] })
+    });
+    if (!r.ok) throw new Error(`Create failed: ${r.status}`);
+    const j = await r.json();
+    return j.metadata.id;
+  }
+
+  // ── Setup ──
+  async function handleSetup() {
+    const name = document.getElementById('user-name-input').value.trim();
+    const key = document.getElementById('api-key-input').value.trim();
+    const bid = document.getElementById('bin-id-input').value.trim();
+    if (!name || !key) { showToast('Please enter your name and API key'); return; }
+
+    const btn = document.querySelector('#setup-step-1 .btn-primary');
+    btn.textContent = 'Connecting...';
+    btn.disabled = true;
+
+    try {
+      apiKey = key;
+      currentUser = name;
+      if (bid) {
+        binId = bid;
+        await readBin(); // verify it works
+      } else {
+        binId = await createBin();
+        alert(`Your Bin ID is: ${binId}\n\nShare this + your API key with family so they can join!`);
+      }
+      saveConfig();
+      startApp();
+    } catch(e) {
+      showToast('Connection failed. Check your API key and Bin ID.');
+      btn.textContent = 'Get Started →';
+      btn.disabled = false;
+    }
+  }
+
+  function logout() {
+    clearInterval(pollingInterval);
+    localStorage.clear();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'block';
+    document.getElementById('user-name-input').value = '';
+  }
+
+  // ── App init ──
+  function startApp() {
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('header-user').textContent = currentUser;
+    loadWishes();
+    pollingInterval = setInterval(loadWishes, 30000); // refresh every 30s
+  }
+
+  async function loadWishes() {
+    try {
+      const data = await readBin();
+      allWishes = data.wishes || [];
+      renderAll();
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  // ── Rendering ──
+  function getFilteredWishes() {
+    let list = allWishes;
+    if (currentView === 'mine') list = list.filter(w => w.owner === currentUser);
+    if (currentView === 'claimed') list = list.filter(w => w.claimedBy === currentUser);
+    if (currentView === 'person' && filterPersonName) list = list.filter(w => w.owner === filterPersonName);
+    if (currentFilter === 'high') list = list.filter(w => w.priority === 'high');
+    if (currentFilter === 'medium') list = list.filter(w => w.priority === 'medium');
+    if (currentFilter === 'low') list = list.filter(w => w.priority === 'low');
+    if (currentFilter === 'unclaimed') list = list.filter(w => !w.claimedBy);
+    return list;
+  }
+
+  function renderAll() {
+    renderGrid();
+    renderSidebar();
+    renderCounts();
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('items-grid');
+    const list = getFilteredWishes();
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state"><h3>Nothing here yet</h3><p>Add your first wish with the button above!</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(w => renderCard(w)).join('');
+  }
+
+  function priorityColor(p) {
+    return p === 'high' ? 'priority-high' : p === 'medium' ? 'priority-medium' : 'priority-low';
+  }
+
+  function avatarColor(name) {
+    const colors = ['#FDA4AF','#86EFAC','#7DD3FC','#FDE68A','#C4B5FD','#FDBA74','#6EE7B7'];
+    let h = 0; for(let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
+    return colors[h];
+  }
+  function initials(name) { return name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2); }
+
+  function renderCard(w) {
+    const isOwner = w.owner === currentUser;
+    const isClaimed = !!w.claimedBy;
+    const iClaimedIt = w.claimedBy === currentUser;
+
+    const claimBtn = isOwner
+      ? `<span class="own-item-badge">Your wish</span>`
+      : iClaimedIt
+        ? `<button class="btn btn-sm btn-ghost" onclick="unclaimWish('${w.id}')">Unclaim</button>`
+        : !isClaimed
+          ? `<button class="btn btn-sm" onclick="claimWish('${w.id}')">🎁 I'll gift this</button>`
+          : `<span class="claimed-by">Claimed by ${isOwner ? 'someone' : w.claimedBy}</span>`;
+
+    const editBtn = isOwner
+      ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>
+         <button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="deleteWish('${w.id}')">Delete</button>`
+      : '';
+
+    return `
+      <div class="wish-card ${isClaimed ? 'claimed' : ''}" id="card-${w.id}">
+        <div>
+          <div class="wish-card-title">${esc(w.name)}</div>
+          <div class="wish-card-meta" style="margin-top:0.4rem;">
+            <span class="priority-dot ${priorityColor(w.priority)}"></span>
+            ${w.price ? `<span class="price-tag">${esc(w.price)}</span>` : ''}
+            <span class="tag">${esc(w.owner)}</span>
+          </div>
+        </div>
+        ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
+        ${w.link ? `<a class="wish-card-link" href="${esc(w.link)}" target="_blank">View item ↗</a>` : ''}
+        <div class="wish-card-actions">
+          ${claimBtn}
+          <span style="flex:1"></span>
+          ${editBtn}
+        </div>
+      </div>`;
+  }
+
+  function renderSidebar() {
+    const members = [...new Set(allWishes.map(w => w.owner))];
+    const nav = document.getElementById('family-nav');
+    nav.innerHTML = members.map(m => {
+      const count = allWishes.filter(w => w.owner === m).length;
+      const col = avatarColor(m);
+      return `<div class="sidebar-item ${currentView==='person'&&filterPersonName===m?'active':''}"
+                   onclick="setPersonView('${m}')">
+        <div class="sidebar-avatar" style="background:${col}20;color:${col};">${initials(m)}</div>
+        ${esc(m)} <span class="count">${count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderCounts() {
+    document.getElementById('count-all').textContent = allWishes.length;
+    document.getElementById('count-mine').textContent = allWishes.filter(w=>w.owner===currentUser).length;
+    document.getElementById('count-claimed').textContent = allWishes.filter(w=>w.claimedBy===currentUser).length;
+  }
+
+  // ── Navigation ──
+  function setView(view) {
+    currentView = view;
+    filterPersonName = null;
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    if (view === 'all') {
+      document.getElementById('nav-all').classList.add('active');
+      document.getElementById('view-title').innerHTML = 'Everyone\'s <em>wishlist</em>';
+      document.getElementById('view-subtitle').textContent = 'Items added by the whole family';
+    } else if (view === 'mine') {
+      document.getElementById('nav-mine').classList.add('active');
+      document.getElementById('view-title').innerHTML = 'My <em>wishlist</em>';
+      document.getElementById('view-subtitle').textContent = 'Wishes you\'ve added for yourself';
+    } else if (view === 'claimed') {
+      document.getElementById('nav-claimed').classList.add('active');
+      document.getElementById('view-title').innerHTML = 'Gifts I\'m <em>giving</em>';
+      document.getElementById('view-subtitle').textContent = 'Items you\'ve claimed to gift';
+    }
+    renderAll();
+  }
+
+  function setPersonView(name) {
+    currentView = 'person';
+    filterPersonName = name;
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-title').innerHTML = `${esc(name)}'s <em>wishlist</em>`;
+    document.getElementById('view-subtitle').textContent = `${esc(name)}'s wishes`;
+    renderAll();
+    // highlight active
+    renderSidebar();
+  }
+
+  function setFilter(f, el) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderGrid();
+  }
+
+  // ── Wish CRUD ──
+  let editingId = null;
+
+  function showAddModal() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = 'Add a wish';
+    document.getElementById('wish-name').value = '';
+    document.getElementById('wish-price').value = '';
+    document.getElementById('wish-priority').value = 'medium';
+    document.getElementById('wish-link').value = '';
+    document.getElementById('wish-notes').value = '';
+    document.getElementById('wish-modal').style.display = 'flex';
+    document.getElementById('wish-name').focus();
+  }
+
+  function editWish(id) {
+    const w = allWishes.find(x => x.id === id);
+    if (!w) return;
+    editingId = id;
+    document.getElementById('modal-title').textContent = 'Edit wish';
+    document.getElementById('wish-name').value = w.name;
+    document.getElementById('wish-price').value = w.price || '';
+    document.getElementById('wish-priority').value = w.priority;
+    document.getElementById('wish-link').value = w.link || '';
+    document.getElementById('wish-notes').value = w.notes || '';
+    document.getElementById('wish-modal').style.display = 'flex';
+  }
+
+  function closeModal() { document.getElementById('wish-modal').style.display = 'none'; }
+  function closeModalIfOutside(e) { if (e.target === document.getElementById('wish-modal')) closeModal(); }
+
+  async function saveWish() {
+    const name = document.getElementById('wish-name').value.trim();
+    if (!name) { showToast('Please enter a name for your wish'); return; }
+
+    const wish = {
+      id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      name,
+      price: document.getElementById('wish-price').value.trim(),
+      priority: document.getElementById('wish-priority').value,
+      link: document.getElementById('wish-link').value.trim(),
+      notes: document.getElementById('wish-notes').value.trim(),
+      owner: currentUser,
+      claimedBy: editingId ? (allWishes.find(w=>w.id===editingId)?.claimedBy||null) : null,
+      createdAt: editingId ? (allWishes.find(w=>w.id===editingId)?.createdAt||Date.now()) : Date.now()
+    };
+
+    try {
+      const data = await readBin();
+      const wishes = data.wishes || [];
+      if (editingId) {
+        const idx = wishes.findIndex(w => w.id === editingId);
+        if (idx >= 0) wishes[idx] = wish; else wishes.push(wish);
+      } else {
+        wishes.push(wish);
+      }
+      allWishes = wishes;
+      await writeBin({ wishes });
+      closeModal();
+      renderAll();
+      showToast(editingId ? 'Wish updated!' : 'Wish added!');
+    } catch(e) {
+      showToast('Failed to save. Try again.');
+    }
+  }
+
+  async function deleteWish(id) {
+    if (!confirm('Remove this wish?')) return;
+    try {
+      const data = await readBin();
+      const wishes = (data.wishes || []).filter(w => w.id !== id);
+      allWishes = wishes;
+      await writeBin({ wishes });
+      renderAll();
+      showToast('Wish removed');
+    } catch(e) {
+      showToast('Failed to delete.');
+    }
+  }
+
+  async function claimWish(id) {
+    try {
+      const data = await readBin();
+      const wishes = data.wishes || [];
+      const w = wishes.find(x => x.id === id);
+      if (!w) return;
+      if (w.claimedBy) { showToast('Already claimed!'); return; }
+      w.claimedBy = currentUser;
+      allWishes = wishes;
+      await writeBin({ wishes });
+      renderAll();
+      showToast('🎁 Claimed! You\'re gifting this.');
+    } catch(e) {
+      showToast('Failed to claim.');
+    }
+  }
+
+  async function unclaimWish(id) {
+    try {
+      const data = await readBin();
+      const wishes = data.wishes || [];
+      const w = wishes.find(x => x.id === id);
+      if (w) w.claimedBy = null;
+      allWishes = wishes;
+      await writeBin({ wishes });
+      renderAll();
+      showToast('Unclaimed');
+    } catch(e) {
+      showToast('Failed to unclaim.');
+    }
+  }
+
+  // ── Utils ──
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  // ── Boot ──
+  loadConfig();
+  if (currentUser && apiKey && binId) {
+    startApp();
+  }
+</script>
+</body>
+</html>
