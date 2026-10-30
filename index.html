@@ -71,13 +71,15 @@
     }
     .user-badge:hover { border-color: var(--border-strong); color: var(--ink); }
     .user-badge .caret { font-size: 0.65rem; color: var(--ink-muted); }
-    .user-menu { position: relative; }
-    .user-menu-list {
+    .menu { position: relative; }
+    .menu-list {
       display: none;
       position: absolute;
       right: 0;
       top: calc(100% + 0.4rem);
-      min-width: 160px;
+      min-width: 180px;
+      max-width: min(320px, calc(100vw - 2rem));
+      overflow: hidden;
       background: var(--warm-white);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -85,8 +87,8 @@
       padding: 0.3rem;
       z-index: 150;
     }
-    .user-menu-list.open { display: block; }
-    .user-menu-list button {
+    .menu-list.open { display: block; }
+    .menu-list button {
       display: block;
       width: 100%;
       text-align: left;
@@ -98,8 +100,11 @@
       border-radius: 7px;
       padding: 0.5rem 0.7rem;
       cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .user-menu-list button:hover { background: var(--tag-bg); }
+    .menu-list button:hover { background: var(--tag-bg); }
 
     /* ── Avatars ── initials underneath, the photo (if any) on top */
     .avatar {
@@ -537,7 +542,7 @@
     }
 
     /* ── Groups ── */
-    .group-select {
+    .group-btn {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.85rem;
       font-weight: 500;
@@ -546,9 +551,17 @@
       border-radius: 8px;
       background: var(--warm-white);
       color: var(--ink);
-      max-width: 220px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      max-width: 240px;
       cursor: pointer;
     }
+    .group-btn:hover { background: var(--tag-bg); }
+    .group-btn #group-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .group-btn .caret { font-size: 0.65rem; color: var(--ink-muted); }
+    .menu-list .check { display: inline-block; width: 1.1rem; color: var(--accent-mid); }
+    .menu-divider { height: 1px; background: var(--border); margin: 0.3rem 0.2rem; }
     .join-group-name {
       font-family: 'Lora', serif;
       font-size: 1.3rem;
@@ -633,7 +646,7 @@
     @media (max-width: 680px) {
       header { padding: 1rem; flex-wrap: wrap; gap: 0.75rem; }
       .header-actions { flex-wrap: wrap; }
-      .user-menu-list { right: auto; left: 0; }
+      .menu-list { right: auto; left: 0; }
       .main-layout { grid-template-columns: 1fr; }
       .sidebar { display: none; }
       .content { padding: 1rem; }
@@ -709,17 +722,22 @@
   <header>
     <div class="logo">🎁 Family <span>Wishlist</span></div>
     <div class="header-actions">
-      <select class="group-select" id="group-select" onchange="onGroupSelect(this)" title="Switch Group"></select>
-      <button class="btn btn-sm" id="admin-btn" style="display:none;" onclick="openAdmin()">⚙ Groups</button>
-      <div class="user-menu">
-        <button class="user-badge" id="user-menu-btn" onclick="toggleUserMenu(event)" aria-haspopup="menu" aria-expanded="false">
+      <div class="menu">
+        <button class="group-btn" id="group-menu-btn" onclick="toggleMenu(event, 'group')" aria-haspopup="menu" aria-expanded="false" title="Switch Group">
+          <span id="group-current"></span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="menu-list" id="group-menu-list" role="menu"></div>
+      </div>
+      <div class="menu">
+        <button class="user-badge" id="user-menu-btn" onclick="toggleMenu(event, 'user')" aria-haspopup="menu" aria-expanded="false">
           <span id="header-avatar"></span>
           <span id="header-user"></span>
           <span class="caret">▾</span>
         </button>
-        <div class="user-menu-list" id="user-menu-list" role="menu">
-          <button role="menuitem" onclick="closeUserMenu(); openProfile()">👤 Profile</button>
-          <button role="menuitem" onclick="closeUserMenu(); signOutUser()">⎋ Sign out</button>
+        <div class="menu-list" id="user-menu-list" role="menu">
+          <button role="menuitem" onclick="closeMenus(); openProfile()">👤 Profile</button>
+          <button role="menuitem" onclick="closeMenus(); signOutUser()">⎋ Sign out</button>
         </div>
       </div>
     </div>
@@ -1003,7 +1021,6 @@
       console.error('Admin check failed:', e);
       isAdmin = false;
     }
-    document.getElementById('admin-btn').style.display = isAdmin ? '' : 'none';
     document.getElementById('nogroup-create').style.display = isAdmin ? 'block' : 'none';
     subscribeGroups();
   }
@@ -1125,13 +1142,9 @@
     showToast('Lost connection to the wishlist. Try reloading.');
   }
 
-  function onGroupSelect(sel) {
-    if (sel.value === '__join') {
-      sel.value = currentGroupId || '';
-      showJoinModal();
-      return;
-    }
-    selectGroup(sel.value);
+  function pickGroup(gid) {
+    closeMenus();
+    if (gid !== currentGroupId) selectGroup(gid);
   }
 
   // ── Invites & joining ──
@@ -1459,11 +1472,16 @@
     if (isOpen('profile-modal')) renderProfile();
   }
 
+  // The Group menu: your Groups (✓ on the current one), then joining, then admin tools.
   function renderGroupSelect() {
-    const sel = document.getElementById('group-select');
-    sel.innerHTML = groups.map(g =>
-      `<option value="${g.id}" ${g.id === currentGroupId ? 'selected' : ''}>${esc(g.name)}</option>`
-    ).join('') + '<option value="__join">+ Join with code…</option>';
+    const current = currentGroup();
+    document.getElementById('group-current').textContent = current ? current.name : 'Groups';
+    document.getElementById('group-menu-list').innerHTML =
+      groups.map(g => `<button role="menuitemradio" aria-checked="${g.id === currentGroupId}" onclick="pickGroup('${g.id}')">`
+        + `<span class="check">${g.id === currentGroupId ? '✓' : ''}</span>${esc(g.name)}</button>`).join('')
+      + '<div class="menu-divider"></div>'
+      + '<button role="menuitem" onclick="closeMenus(); showJoinModal()"><span class="check"></span>+ Join with code…</button>'
+      + (isAdmin ? '<button role="menuitem" onclick="closeMenus(); openAdmin()"><span class="check"></span>⚙ Manage Groups</button>' : '');
   }
 
   function renderGrid() {
@@ -1884,21 +1902,26 @@
     return safePhoto(user.photoURL);
   }
 
-  function toggleUserMenu(e) {
+  // ── Header menus ── 'group' (Group switcher) and 'user' (Profile / Sign out); one open at a time.
+  const MENUS = ['group', 'user'];
+
+  function toggleMenu(e, name) {
     e.stopPropagation();
-    const list = document.getElementById('user-menu-list');
-    const open = !list.classList.contains('open');
-    list.classList.toggle('open', open);
-    document.getElementById('user-menu-btn').setAttribute('aria-expanded', String(open));
+    const open = !document.getElementById(name + '-menu-list').classList.contains('open');
+    closeMenus();
+    document.getElementById(name + '-menu-list').classList.toggle('open', open);
+    document.getElementById(name + '-menu-btn').setAttribute('aria-expanded', String(open));
   }
 
-  function closeUserMenu() {
-    document.getElementById('user-menu-list').classList.remove('open');
-    document.getElementById('user-menu-btn').setAttribute('aria-expanded', 'false');
+  function closeMenus() {
+    MENUS.forEach(function(name) {
+      document.getElementById(name + '-menu-list').classList.remove('open');
+      document.getElementById(name + '-menu-btn').setAttribute('aria-expanded', 'false');
+    });
   }
 
-  document.addEventListener('click', e => { if (!e.target.closest('.user-menu')) closeUserMenu(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUserMenu(); });
+  document.addEventListener('click', e => { if (!e.target.closest('.menu')) closeMenus(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
 
   function openProfile() {
     renderProfile();
@@ -1999,11 +2022,11 @@
 
   // Inline onclick handlers need these on window, since module scope isn't global.
   Object.assign(window, {
-    signIn, signOutUser, handleJoin, cancelJoin, joinWithCode, onGroupSelect, leaveGroup,
+    signIn, signOutUser, handleJoin, cancelJoin, joinWithCode, showJoinModal, pickGroup, leaveGroup,
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleUserMenu, closeUserMenu, openProfile, onProfileFile, saveProfilePhoto
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, openProfile, onProfileFile, saveProfilePhoto
   });
 
   // ── Boot ──

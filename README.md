@@ -75,7 +75,7 @@ Google sign-in only works on domains Firebase trusts. `localhost` is allowed by 
 1. Open the app and sign in with Google once.
 2. In the console, **Authentication → Users**, copy your **User UID**.
 3. **Firestore Database → Data → Start collection**. Collection ID `admins`, Document ID your UID, and add any field (e.g. `role` = `admin`). Save.
-4. Reload the app. You now see **⚙ Groups** in the header, or a *Create Group* form if you're in no Groups yet.
+4. Reload the app. The Group menu in the header now has **⚙ Manage Groups**, or you see a *Create Group* form if you're in no Groups yet.
 
 Admins can only be added this way — the app itself can never write to `admins`.
 
@@ -93,7 +93,7 @@ The free plan allows 100,000 requests a day. The account's `workers.dev` subdoma
 
 ### **7. Create a Group and invite family**
 
-Create a Group from **⚙ Groups**. Each Group gets an 8-character invite code; share either the code or the **🔗 Copy link** link (`…/?invite=CODE`). Family members open the link — or enter the code — sign in with Google, pick the name shown to everyone, and they're in.
+Create a Group from the Group menu → **⚙ Manage Groups**. Each Group gets an 8-character invite code; share either the code or the **🔗 Copy link** link (`…/?invite=CODE`). Family members open the link — or enter the code — sign in with Google, pick the name shown to everyone, and they're in.
 
 ## Architecture
 
@@ -109,7 +109,7 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 | **Invites & joining** | Looks up an invite code, shows the join screen, and joins in one batch (member doc + Group membership). Also *Leave this Group*. |
 | **Admin** | Create Groups, copy or replace invite codes, remove members, delete Groups. |
 | **Profile** | The name menu and the Profile picture dialog. Uploads are centre-cropped to a 160 px JPEG (a few KB) and saved on your member doc in every Group you're in. |
-| **Rendering** | Card grid, family sidebar, counts, and the Group picker. |
+| **Rendering** | Card grid, family sidebar, counts, and the Group menu. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
 | **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
 | **Link autofill** | When a link is pasted, guesses a name from the URL, then asks the Worker for the page title and price. Only fills fields that are empty or were filled by an earlier lookup. |
@@ -140,7 +140,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Surface | Summary |
 |---|---|
 | **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
-| **Header** | Group picker (with *+ Join with code…*) · **⚙ Groups** for admins · your picture and name, which open a menu with **Profile** and **Sign out**. |
+| **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
 | **Profile** | Upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, notes, and an optional link. Filter chips above the grid. |
