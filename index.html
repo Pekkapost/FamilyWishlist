@@ -527,8 +527,9 @@
       <strong>Get a free API key:</strong><br/>
       1. Sign up at <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br/>
       2. Copy your <strong>Master API Key</strong> from the dashboard<br/>
-      3. Paste it above — your wishlist will be created automatically<br/>
-      4. Use the 🔗 Invite link button to add family members
+      3. Paste it above — a scoped access key will be created automatically<br/>
+      4. Your Master Key is used once and never stored<br/>
+      5. Use the 🔗 Invite link button to add family members
     </div>
   </div>
 </div>
@@ -655,7 +656,7 @@
   // ── JSONBin API ──
   async function readBin() {
     const r = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
-      headers: { 'X-Master-Key': apiKey }
+      headers: { 'X-Access-Key': apiKey }
     });
     if (!r.ok) throw new Error(`Read failed: ${r.status}`);
     const j = await r.json();
@@ -665,27 +666,44 @@
   async function writeBin(data) {
     const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
+      headers: { 'Content-Type': 'application/json', 'X-Access-Key': apiKey },
       body: JSON.stringify(data)
     });
     if (!r.ok) throw new Error(`Write failed: ${r.status}`);
     return (await r.json()).record;
   }
 
-  async function createBin() {
-    const r = await fetch(`${JSONBIN_BASE}/b`, {
+  async function createBinAndAccessKey(masterKey) {
+    // Step 1: Create the bin using the master key
+    const binRes = await fetch(`${JSONBIN_BASE}/b`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': apiKey,
+        'X-Master-Key': masterKey,
         'X-Bin-Name': 'family-wishlist',
         'X-Bin-Private': 'true'
       },
       body: JSON.stringify({ wishes: [] })
     });
-    if (!r.ok) throw new Error(`Create failed: ${r.status}`);
-    const j = await r.json();
-    return j.metadata.id;
+    if (!binRes.ok) throw new Error(`Create bin failed: ${binRes.status}`);
+    const binData = await binRes.json();
+    const newBinId = binData.metadata.id;
+
+    // Step 2: Create a scoped access key (read + update only, no delete/create)
+    const keyRes = await fetch(`${JSONBIN_BASE}/a`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': masterKey,
+        'X-Key-Name': 'family-wishlist-key'
+      },
+      body: JSON.stringify({ bins: { read: true, update: true, create: false, delete: false } })
+    });
+    if (!keyRes.ok) throw new Error(`Create access key failed: ${keyRes.status}`);
+    const keyData = await keyRes.json();
+    const accessKey = keyData.accessKey;
+
+    return { binId: newBinId, accessKey };
   }
 
   // ── Setup modes ──
@@ -735,13 +753,15 @@
 
   async function handleCreate() {
     var name = document.getElementById('create-name-input').value.trim();
-    var key = document.getElementById('create-api-key-input').value.trim();
-    if (!name || !key) { showToast('Please enter your name and API key'); return; }
+    var masterKey = document.getElementById('create-api-key-input').value.trim();
+    if (!name || !masterKey) { showToast('Please enter your name and API key'); return; }
     var btn = document.querySelector('#mode-create .btn-primary');
     btn.textContent = 'Creating...'; btn.disabled = true;
     try {
-      apiKey = key; currentUser = name;
-      binId = await createBin();
+      currentUser = name;
+      var result = await createBinAndAccessKey(masterKey);
+      apiKey = result.accessKey;
+      binId = result.binId;
       saveConfig();
       startApp();
     } catch(e) {
@@ -971,68 +991,70 @@
       createdAt: editingId ? (allWishes.find(w=>w.id===editingId)?.createdAt||Date.now()) : Date.now()
     };
 
+    const prev = allWishes.slice();
+    if (editingId) {
+      const idx = allWishes.findIndex(w => w.id === editingId);
+      if (idx >= 0) allWishes[idx] = wish; else allWishes.push(wish);
+    } else {
+      allWishes.push(wish);
+    }
+    closeModal();
+    renderAll();
+    showToast(editingId ? 'Wish updated!' : 'Wish added!');
+
     try {
-      const data = await readBin();
-      const wishes = data.wishes || [];
-      if (editingId) {
-        const idx = wishes.findIndex(w => w.id === editingId);
-        if (idx >= 0) wishes[idx] = wish; else wishes.push(wish);
-      } else {
-        wishes.push(wish);
-      }
-      allWishes = wishes;
-      await writeBin({ wishes });
-      closeModal();
-      renderAll();
-      showToast(editingId ? 'Wish updated!' : 'Wish added!');
+      await writeBin({ wishes: allWishes });
     } catch(e) {
+      allWishes = prev;
+      renderAll();
       showToast('Failed to save. Try again.');
     }
   }
 
   async function deleteWish(id) {
     if (!confirm('Remove this wish?')) return;
+    const prev = allWishes.slice();
+    allWishes = allWishes.filter(w => w.id !== id);
+    renderAll();
     try {
-      const data = await readBin();
-      const wishes = (data.wishes || []).filter(w => w.id !== id);
-      allWishes = wishes;
-      await writeBin({ wishes });
-      renderAll();
+      await writeBin({ wishes: allWishes });
       showToast('Wish removed');
     } catch(e) {
-      showToast('Failed to delete.');
+      allWishes = prev;
+      renderAll();
+      showToast('Failed to delete. Try again.');
     }
   }
 
   async function claimWish(id) {
+    const w = allWishes.find(x => x.id === id);
+    if (!w) return;
+    if (w.claimedBy) { showToast('Already claimed!'); return; }
+    w.claimedBy = currentUser;
+    renderAll();
     try {
-      const data = await readBin();
-      const wishes = data.wishes || [];
-      const w = wishes.find(x => x.id === id);
-      if (!w) return;
-      if (w.claimedBy) { showToast('Already claimed!'); return; }
-      w.claimedBy = currentUser;
-      allWishes = wishes;
-      await writeBin({ wishes });
-      renderAll();
+      await writeBin({ wishes: allWishes });
       showToast('🎁 Claimed! You\'re gifting this.');
     } catch(e) {
-      showToast('Failed to claim.');
+      w.claimedBy = null;
+      renderAll();
+      showToast('Failed to claim. Try again.');
     }
   }
 
   async function unclaimWish(id) {
+    const w = allWishes.find(x => x.id === id);
+    if (!w) return;
+    const prev = w.claimedBy;
+    w.claimedBy = null;
+    renderAll();
     try {
-      const data = await readBin();
-      const wishes = data.wishes || [];
-      const w = wishes.find(x => x.id === id);
-      if (w) w.claimedBy = null;
-      allWishes = wishes;
-      await writeBin({ wishes });
-      renderAll();
+      await writeBin({ wishes: allWishes });
       showToast('Unclaimed');
     } catch(e) {
-      showToast('Failed to unclaim.');
+      w.claimedBy = prev;
+      renderAll();
+      showToast('Failed to unclaim. Try again.');
     }
   }
 
