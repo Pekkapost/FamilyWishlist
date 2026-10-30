@@ -348,9 +348,9 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .priority-high { background: var(--accent-mid); }
-    .priority-medium { background: #EAB308; }
-    .priority-low { background: var(--ink-muted); }
+    .priority-high { background: #DC2626; }
+    .priority-medium { background: var(--accent-mid); }
+    .priority-low { background: #EAB308; }
     .tag {
       font-size: 0.72rem;
       padding: 0.2rem 0.55rem;
@@ -697,8 +697,8 @@
       <div class="filter-bar">
         <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
         <span class="filter-chip" onclick="setFilter('high', this)">🔴 High</span>
-        <span class="filter-chip" onclick="setFilter('medium', this)">🟡 Medium</span>
-        <span class="filter-chip" onclick="setFilter('low', this)">⚪ Low</span>
+        <span class="filter-chip" onclick="setFilter('medium', this)">🟠 Medium</span>
+        <span class="filter-chip" onclick="setFilter('low', this)">🟡 Low</span>
         <span class="filter-chip" onclick="setFilter('unclaimed', this)">Not yet claimed</span>
       </div>
 
@@ -732,8 +732,8 @@
         <label>Priority</label>
         <select id="wish-priority">
           <option value="high">🔴 High</option>
-          <option value="medium" selected>🟡 Medium</option>
-          <option value="low">⚪ Low</option>
+          <option value="medium" selected>🟠 Medium</option>
+          <option value="low">🟡 Low</option>
         </select>
       </div>
     </div>

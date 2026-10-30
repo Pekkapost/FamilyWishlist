@@ -135,7 +135,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 
 | Element | Behaviour |
 |---|---|
-| **Filter chips** | All · 🔴 High · 🟡 Medium · ⚪ Low · Not yet claimed. Combine with any sidebar view. |
+| **Filter chips** | All · 🔴 High · 🟠 Medium · 🟡 Low · Not yet claimed. Combine with any sidebar view. |
 | **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
 | **Other people's wishes** | *🎁 I'll gift this* to claim; *Unclaim* if you claimed it; otherwise *Claimed by &lt;name&gt;*, dimmed. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
