@@ -257,7 +257,7 @@
     .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
 
     /* ── Content area ── */
-    .content { padding: 2rem; max-width: 900px; }
+    .content { padding: 2rem; width: 100%; max-width: 900px; margin: 0 auto; }
     .content-header {
       display: flex;
       align-items: flex-start;
@@ -584,6 +584,7 @@
       .main-layout { grid-template-columns: 1fr; }
       .sidebar { display: none; }
       .content { padding: 1rem; }
+      .content-header { flex-wrap: wrap; gap: 0.75rem; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
     }
   </style>
