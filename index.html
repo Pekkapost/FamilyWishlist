@@ -472,10 +472,107 @@
       grid-column: 1 / -1;
     }
 
+    /* ── Groups ── */
+    .group-select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.4rem 0.7rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: var(--warm-white);
+      color: var(--ink);
+      max-width: 220px;
+      cursor: pointer;
+    }
+    .join-group-name {
+      font-family: 'Lora', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .invite-code {
+      font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.55rem;
+      border-radius: 6px;
+    }
+    .modal-wide { max-width: 640px; }
+    .inline-form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .inline-form input {
+      flex: 1;
+      padding: 0.55rem 0.85rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      background: var(--warm-white);
+      color: var(--ink);
+      outline: none;
+    }
+    .inline-form input:focus { border-color: var(--accent-mid); }
+    .admin-group {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .admin-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .admin-group-head strong { font-family: 'Lora', serif; font-size: 1.05rem; }
+    .admin-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .admin-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-muted);
+      width: 100%;
+    }
+    .member-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.78rem;
+      padding: 0.15rem 0.25rem 0.15rem 0.6rem;
+      border-radius: 99px;
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--ink-soft);
+    }
+    .member-chip button {
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 0 0.3rem;
+      border-radius: 99px;
+    }
+    .member-chip button:hover { color: var(--accent); background: var(--accent-light); }
+
     @media (max-width: 680px) {
+      header { padding: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+      .header-actions { flex-wrap: wrap; }
       .main-layout { grid-template-columns: 1fr; }
       .sidebar { display: none; }
       .content { padding: 1rem; }
+      #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
     }
   </style>
 </head>
@@ -483,54 +580,61 @@
 
 <!-- Setup Screen -->
 <div id="setup-screen" style="position:relative;">
-  <div style="position:absolute;top:1rem;right:1.25rem;font-size:0.72rem;color:var(--ink-muted);">v1.0.0</div>
+  <div style="position:absolute;top:1rem;right:1.25rem;font-size:0.72rem;color:var(--ink-muted);">v2.0.0</div>
   <div style="font-size:2.5rem;margin-bottom:0.75rem;">🎁</div>
   <h1>Family <span style="color:var(--accent-mid);font-style:italic;">Wishlist</span></h1>
   <p id="setup-subtitle">A shared space for your family to manage wishlists — gifts are a surprise, but picking them doesn't have to be.</p>
 
-  <!-- Mode: JOIN (invite link) — name only -->
+  <!-- Mode: LOADING -->
+  <div id="mode-loading">
+    <div class="loading-row" style="justify-content:center;padding:0;"><span class="spinner"></span> Loading...</div>
+  </div>
+
+  <!-- Mode: CONFIG — config.js still has placeholders, or the app failed to start -->
+  <div id="mode-config" style="display:none;">
+    <div class="config-note" id="config-note">
+      <strong>Connect Firebase:</strong><br/>
+      Open <code>config.js</code> and paste your Firebase web app config.
+      The README's Setup section walks through it.
+    </div>
+  </div>
+
+  <!-- Mode: SIGN IN -->
+  <div id="mode-signin" style="display:none;">
+    <button class="btn btn-primary" style="width:100%;" onclick="signIn()">Sign in with Google →</button>
+  </div>
+
+  <!-- Mode: JOIN — holding a valid invite code -->
   <div id="mode-join" style="display:none;">
+    <div class="join-group-name" id="join-group-name"></div>
     <div class="form-group">
       <label>Your name</label>
-      <input type="text" id="join-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+      <input type="text" id="join-name-input" maxlength="40" placeholder="e.g. Grandma, Dad, Sofia..." />
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleJoin()">
-      Join wishlist →
+    <button class="btn btn-primary" id="join-btn" style="width:100%;margin-top:0.5rem;" onclick="handleJoin()">
+      Join Group →
     </button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:0.5rem;" onclick="cancelJoin()">Not now</button>
   </div>
 
-  <!-- Mode: SWITCH USER — name only, credentials kept -->
-  <div id="mode-switch" style="display:none;">
+  <!-- Mode: NO GROUP — signed in but not in any Group yet -->
+  <div id="mode-nogroup" style="display:none;">
     <div class="form-group">
-      <label>Your name</label>
-      <input type="text" id="switch-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+      <label>Invite code</label>
+      <input type="text" id="nogroup-code-input" maxlength="32" placeholder="e.g. K7QM4XPA" />
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleSwitch()">
-      Sign in →
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="joinWithCode('nogroup-code-input')">
+      Continue →
     </button>
-  </div>
-
-  <!-- Mode: CREATE — full admin setup -->
-  <div id="mode-create">
-    <div class="form-group">
-      <label>Your name</label>
-      <input type="text" id="create-name-input" placeholder="e.g. Grandma, Dad, Sofia..." />
+    <div id="nogroup-create" style="display:none;">
+      <div class="divider">admin</div>
+      <div class="form-group">
+        <label>New Group name</label>
+        <input type="text" id="nogroup-group-name" maxlength="60" placeholder="e.g. Smith family" />
+      </div>
+      <button class="btn btn-accent" style="width:100%;" onclick="createGroup('nogroup-group-name')">Create Group</button>
     </div>
-    <div class="form-group">
-      <label>JSONBin API Key</label>
-      <input type="text" id="create-api-key-input" placeholder="$2a$10$..." />
-    </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="handleCreate()">
-      Create wishlist →
-    </button>
-    <div class="config-note" style="margin-top:1rem;">
-      <strong>Get a free API key:</strong><br/>
-      1. Sign up at <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br/>
-      2. Copy your <strong>Master API Key</strong> from the dashboard<br/>
-      3. Paste it above — a scoped access key will be created automatically<br/>
-      4. Your Master Key is used once and never stored<br/>
-      5. Use the 🔗 Invite link button to add family members
-    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:1rem;" onclick="signOutUser()">Sign out</button>
   </div>
 </div>
 
@@ -539,10 +643,11 @@
   <header>
     <div class="logo">🎁 Family <span>Wishlist</span></div>
     <div class="header-actions">
+      <select class="group-select" id="group-select" onchange="onGroupSelect(this)" title="Switch Group"></select>
       <span class="user-badge" id="header-user"></span>
-      <button class="btn btn-sm" onclick="copyInviteLink()" id="invite-btn">🔗 Invite link</button>
+      <button class="btn btn-sm" id="admin-btn" style="display:none;" onclick="openAdmin()">⚙ Groups</button>
       <button class="btn btn-sm" onclick="showAddModal()">+ Add wish</button>
-      <button class="btn btn-sm btn-ghost" onclick="logout()" title="Switch user">⎋</button>
+      <button class="btn btn-sm btn-ghost" onclick="signOutUser()" title="Sign out">⎋</button>
     </div>
   </header>
 
@@ -561,6 +666,10 @@
       <div class="sidebar-divider"></div>
       <div class="sidebar-section-label">Family</div>
       <div id="family-nav"></div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item" onclick="leaveGroup()">
+        <span>🚪</span> Leave this Group
+      </div>
     </aside>
 
     <main class="content">
@@ -588,18 +697,17 @@
 </div>
 
 <!-- Add / Edit Modal -->
-<div class="modal-overlay" id="wish-modal" style="display:none;" onclick="closeModalIfOutside(event)">
+<div class="modal-overlay" id="wish-modal" style="display:none;" onclick="closeModalIfOutside(event, 'wish-modal')">
   <div class="modal">
     <h3 id="modal-title">Add a wish</h3>
-    <input type="hidden" id="edit-id" />
     <div class="form-group">
       <label>Item name *</label>
-      <input type="text" id="wish-name" placeholder="e.g. Cozy knit blanket, Kindle Paperwhite..." />
+      <input type="text" id="wish-name" maxlength="200" placeholder="e.g. Cozy knit blanket, Kindle Paperwhite..." />
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
       <div class="form-group">
         <label>Price (approx.)</label>
-        <input type="text" id="wish-price" placeholder="$50" />
+        <input type="text" id="wish-price" maxlength="40" placeholder="$50" />
       </div>
       <div class="form-group">
         <label>Priority</label>
@@ -612,15 +720,45 @@
     </div>
     <div class="form-group">
       <label>Link (optional)</label>
-      <input type="url" id="wish-link" placeholder="https://..." />
+      <input type="url" id="wish-link" maxlength="2000" placeholder="https://..." />
     </div>
     <div class="form-group">
       <label>Notes</label>
-      <textarea id="wish-notes" placeholder="Size, color, specific edition..."></textarea>
+      <textarea id="wish-notes" maxlength="1000" placeholder="Size, color, specific edition..."></textarea>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="closeModal('wish-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveWish()">Save wish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Join With Code Modal -->
+<div class="modal-overlay" id="join-modal" style="display:none;" onclick="closeModalIfOutside(event, 'join-modal')">
+  <div class="modal">
+    <h3>Join a Group</h3>
+    <div class="form-group">
+      <label>Invite code</label>
+      <input type="text" id="join-modal-code" maxlength="32" placeholder="e.g. K7QM4XPA" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('join-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="joinWithCode('join-modal-code')">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Manage Groups Modal -->
+<div class="modal-overlay" id="admin-modal" style="display:none;" onclick="closeModalIfOutside(event, 'admin-modal')">
+  <div class="modal modal-wide">
+    <h3>Manage Groups</h3>
+    <div class="inline-form">
+      <input type="text" id="admin-group-name" maxlength="60" placeholder="New Group name, e.g. Smith family" />
+      <button class="btn btn-accent" onclick="createGroup('admin-group-name')">Create</button>
+    </div>
+    <div id="admin-groups"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('admin-modal')">Close</button>
     </div>
   </div>
 </div>
@@ -629,201 +767,600 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ── Startup watchdog ── modules don't load from file:// and a missing config.js stops the
+  // module before it runs, so show a hint instead of an endless spinner.
+  setTimeout(function() {
+    if (window.__fwBooted) return;
+    document.getElementById('mode-loading').style.display = 'none';
+    document.getElementById('mode-config').style.display = 'block';
+    document.getElementById('setup-subtitle').textContent = "The app couldn't start.";
+    document.getElementById('config-note').innerHTML =
+      '<strong>Could not load the app.</strong><br/>' +
+      'Serve the folder over http(s) — opening <code>index.html</code> as a file does not work — ' +
+      'and check that <code>config.js</code> is next to it. See the README for setup.';
+  }, 6000);
+</script>
+
+<script type="module">
+  import { firebaseConfig } from './config.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import {
+    getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
+    query, where, onSnapshot, writeBatch, serverTimestamp, arrayUnion, arrayRemove
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+  window.__fwBooted = true;
+
   // ── State ──
-  let currentUser = '';
-  let apiKey = '';
-  let binId = '';
-  let allWishes = [];
+  let fb = null;              // { auth, db }
+  let user = null;            // Firebase user
+  let isAdmin = false;
+  let screen = 'loading';
+  let groups = [];            // Groups the user belongs to
+  let groupsLoaded = false;
+  let currentGroupId = null;
+  let members = {};           // uid -> { name, photoURL }
+  let wishes = [];
+  let claims = {};            // wishId -> { uid, wishOwnerUid } | null (never loaded for own wishes)
   let currentView = 'all';
   let currentFilter = 'all';
-  let filterPersonName = null;
-  let pollingInterval = null;
+  let filterPersonUid = null;
+  let editingId = null;
+  let pendingInvite = null;   // { code, groupId, groupName }
+  let awaitingGroupId = null; // joined, waiting for the Group to show up in the listener
+  let adminGroups = [];
+  const unsub = { groups: null, members: null, wishes: null, claims: {} };
 
-  const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+  const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const INVITE_LENGTH = 8;
+  const BATCH_LIMIT = 450;
 
-  // ── Persistence ──
-  function saveConfig() {
-    localStorage.setItem('fw_user', currentUser);
-    localStorage.setItem('fw_apikey', apiKey);
-    localStorage.setItem('fw_binid', binId);
+  // ── Persistence ── per-browser conveniences only; nothing here is trusted.
+  function store(key, value) {
+    try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch (e) {}
   }
-  function loadConfig() {
-    currentUser = localStorage.getItem('fw_user') || '';
-    apiKey = localStorage.getItem('fw_apikey') || '';
-    binId = localStorage.getItem('fw_binid') || '';
+  function recall(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
   }
-
-  // ── JSONBin API ──
-  async function readBin() {
-    const r = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
-      headers: { 'X-Access-Key': apiKey }
-    });
-    if (!r.ok) throw new Error(`Read failed: ${r.status}`);
-    const j = await r.json();
-    return j.record;
+  function sessionStore(key, value) {
+    try { value == null ? sessionStorage.removeItem(key) : sessionStorage.setItem(key, value); } catch (e) {}
+  }
+  function sessionRecall(key) {
+    try { return sessionStorage.getItem(key); } catch (e) { return null; }
   }
 
-  async function writeBin(data) {
-    const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Access-Key': apiKey },
-      body: JSON.stringify(data)
-    });
-    if (!r.ok) throw new Error(`Write failed: ${r.status}`);
-    return (await r.json()).record;
-  }
+  // ── Firestore paths ──
+  const groupRef = gid => doc(fb.db, 'groups', gid);
+  const membersCol = gid => collection(fb.db, 'groups', gid, 'members');
+  const memberRef = (gid, uid) => doc(fb.db, 'groups', gid, 'members', uid);
+  const wishesCol = gid => collection(fb.db, 'groups', gid, 'wishes');
+  const wishRef = (gid, wid) => doc(fb.db, 'groups', gid, 'wishes', wid);
+  const claimRef = (gid, wid) => doc(fb.db, 'groups', gid, 'claims', wid);
+  const inviteRef = code => doc(fb.db, 'invites', code);
 
-  async function createBinAndAccessKey(masterKey) {
-    // Step 1: Create the bin using the master key
-    const binRes = await fetch(`${JSONBIN_BASE}/b`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': masterKey,
-        'X-Bin-Name': 'family-wishlist',
-        'X-Bin-Private': 'true'
-      },
-      body: JSON.stringify({ wishes: [] })
-    });
-    if (!binRes.ok) throw new Error(`Create bin failed: ${binRes.status}`);
-    const binData = await binRes.json();
-    const newBinId = binData.metadata.id;
-
-    // Step 2: Create a scoped access key (read + update only, no delete/create)
-    const keyRes = await fetch(`${JSONBIN_BASE}/a`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': masterKey,
-        'X-Key-Name': 'family-wishlist-key'
-      },
-      body: JSON.stringify({ bins: { read: true, update: true, create: false, delete: false } })
-    });
-    if (!keyRes.ok) throw new Error(`Create access key failed: ${keyRes.status}`);
-    const keyData = await keyRes.json();
-    const accessKey = keyData.accessKey;
-
-    return { binId: newBinId, accessKey };
-  }
-
-  // ── Setup modes ──
-  function resetBtn(selector, label) {
-    var btn = document.querySelector(selector + ' .btn-primary');
-    if (btn) { btn.textContent = label; btn.disabled = false; }
-  }
-
-  function showMode(mode) {
-    ['join','switch','create'].forEach(function(m) {
+  // ── Screens ──
+  function showScreen(mode) {
+    screen = mode;
+    const inApp = mode === 'app';
+    document.getElementById('setup-screen').style.display = inApp ? 'none' : 'block';
+    document.getElementById('app').style.display = inApp ? 'block' : 'none';
+    ['loading', 'config', 'signin', 'join', 'nogroup'].forEach(function(m) {
       document.getElementById('mode-' + m).style.display = (m === mode) ? 'block' : 'none';
     });
-    var subtitles = {
-      join: "You've been invited! Just enter your name to join your family's wishlist.",
-      switch: "Welcome back — who's signing in?",
-      create: "Set up a new family wishlist. You'll be able to invite others via a link."
+    const subtitles = {
+      loading: 'Loading your wishlists...',
+      config: "Almost there — this copy of the app isn't connected to Firebase yet.",
+      signin: sessionRecall('fw_invite')
+        ? "You've been invited to a Group! Sign in to join."
+        : "A shared space for your family to manage wishlists — gifts are a surprise, but picking them doesn't have to be.",
+      join: "You've been invited to join",
+      nogroup: isAdmin
+        ? "You're not in a Group yet. Create one, or enter an invite code."
+        : "You're not in a Group yet. Ask for an invite link, or enter your invite code below."
     };
-    document.getElementById('setup-subtitle').textContent = subtitles[mode] || '';
+    if (subtitles[mode]) document.getElementById('setup-subtitle').textContent = subtitles[mode];
+  }
+
+  // ── Auth ──
+  async function signIn() {
+    try {
+      await signInWithPopup(fb.auth, new GoogleAuthProvider());
+    } catch (e) {
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+      console.error('Sign-in failed:', e);
+      showToast(e.code === 'auth/popup-blocked'
+        ? 'Your browser blocked the sign-in popup. Allow popups and try again.'
+        : 'Sign-in failed. Try again.');
+    }
+  }
+
+  function signOutUser() {
+    signOut(fb.auth);
+  }
+
+  function handleSignedOut() {
+    stopAllListeners();
+    user = null; isAdmin = false;
+    groups = []; groupsLoaded = false;
+    currentGroupId = null; members = {}; wishes = []; claims = {};
+    pendingInvite = null; awaitingGroupId = null;
+    showScreen('signin');
+  }
+
+  async function handleSignedIn(u) {
+    stopAllListeners();
+    user = u;
+    groupsLoaded = false;
+    showScreen('loading');
+    try {
+      isAdmin = (await getDoc(doc(fb.db, 'admins', u.uid))).exists();
+    } catch (e) {
+      console.error('Admin check failed:', e);
+      isAdmin = false;
+    }
+    document.getElementById('admin-btn').style.display = isAdmin ? '' : 'none';
+    document.getElementById('nogroup-create').style.display = isAdmin ? 'block' : 'none';
+    subscribeGroups();
+  }
+
+  // ── Groups ──
+  function subscribeGroups() {
+    const q = query(collection(fb.db, 'groups'), where('memberUids', 'array-contains', user.uid));
+    unsub.groups = onSnapshot(q, function(snap) {
+      groups = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byName);
+      renderGroupSelect();
+      if (awaitingGroupId && groups.some(g => g.id === awaitingGroupId)) {
+        const gid = awaitingGroupId;
+        awaitingGroupId = null; pendingInvite = null;
+        selectGroup(gid);
+        showScreen('app');
+        resetBtn('join-btn', 'Join Group →');
+        return;
+      }
+      if (!groupsLoaded) {
+        groupsLoaded = true;
+        routeAfterLoad();
+      } else {
+        ensureCurrentGroup();
+      }
+    }, function(e) {
+      console.error('Groups listener failed:', e);
+      showToast('Could not load your Groups.');
+    });
+  }
+
+  async function routeAfterLoad() {
+    const code = sessionRecall('fw_invite');
+    if (code) {
+      sessionStore('fw_invite', null);
+      if (await openInvite(code)) return;
+    }
+    ensureCurrentGroup();
+  }
+
+  function ensureCurrentGroup() {
+    if (screen === 'join') return;
+    if (!groups.length) {
+      selectGroup(null);
+      showScreen('nogroup');
+      return;
+    }
+    if (!groups.some(g => g.id === currentGroupId)) {
+      const saved = recall('fw_group');
+      selectGroup(groups.some(g => g.id === saved) ? saved : groups[0].id);
+    }
+    showScreen('app');
+  }
+
+  function currentGroup() {
+    return groups.find(g => g.id === currentGroupId) || null;
+  }
+
+  function selectGroup(gid) {
+    stopGroupListeners();
+    currentGroupId = gid;
+    members = {}; wishes = []; claims = {};
+    if (!gid) return;
+    store('fw_group', gid);
+    renderGroupSelect();
+    setView('all');
+    document.getElementById('items-grid').innerHTML =
+      '<div class="loading-row"><span class="spinner"></span> Loading wishes...</div>';
+
+    unsub.members = onSnapshot(membersCol(gid), function(snap) {
+      members = {};
+      snap.forEach(d => { members[d.id] = d.data(); });
+      renderAll();
+    }, onListenError);
+
+    unsub.wishes = onSnapshot(wishesCol(gid), function(snap) {
+      wishes = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => millis(a.createdAt) - millis(b.createdAt));
+      syncClaimListeners();
+      renderAll();
+    }, onListenError);
+  }
+
+  // One listener per wish that isn't yours — the rules never let you read claims on your own wishes.
+  function syncClaimListeners() {
+    const gid = currentGroupId;
+    const wanted = new Set(wishes.filter(w => w.ownerUid !== user.uid).map(w => w.id));
+    Object.keys(unsub.claims).forEach(function(wid) {
+      if (wanted.has(wid)) return;
+      unsub.claims[wid]();
+      delete unsub.claims[wid];
+      delete claims[wid];
+    });
+    wanted.forEach(function(wid) {
+      if (unsub.claims[wid]) return;
+      unsub.claims[wid] = onSnapshot(claimRef(gid, wid), function(snap) {
+        claims[wid] = snap.exists() ? snap.data() : null;
+        renderAll();
+      }, onListenError);
+    });
+  }
+
+  function stopGroupListeners() {
+    if (unsub.members) unsub.members();
+    if (unsub.wishes) unsub.wishes();
+    Object.values(unsub.claims).forEach(fn => fn());
+    unsub.members = null; unsub.wishes = null; unsub.claims = {};
+  }
+
+  function stopAllListeners() {
+    stopGroupListeners();
+    if (unsub.groups) unsub.groups();
+    unsub.groups = null;
+  }
+
+  // Permission errors are expected for a moment after leaving or being removed from a Group;
+  // the Groups listener catches up and moves you along.
+  function onListenError(e) {
+    if (e.code === 'permission-denied') { console.warn('Listener closed:', e.message); return; }
+    console.error(e);
+    showToast('Lost connection to the wishlist. Try reloading.');
+  }
+
+  function onGroupSelect(sel) {
+    if (sel.value === '__join') {
+      sel.value = currentGroupId || '';
+      showJoinModal();
+      return;
+    }
+    selectGroup(sel.value);
+  }
+
+  // ── Invites & joining ──
+  function normalizeCode(raw) {
+    return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+  }
+
+  function newInviteCode() {
+    const bytes = crypto.getRandomValues(new Uint8Array(INVITE_LENGTH));
+    return Array.from(bytes, b => INVITE_ALPHABET[b % INVITE_ALPHABET.length]).join('');
+  }
+
+  function inviteLink(code) {
+    return location.origin + location.pathname + '?invite=' + encodeURIComponent(code);
+  }
+
+  async function openInvite(rawCode) {
+    const code = normalizeCode(rawCode);
+    if (!code) { showToast('Please enter an invite code'); return false; }
+    let snap;
+    try {
+      snap = await getDoc(inviteRef(code));
+    } catch (e) {
+      console.error('Invite lookup failed:', e);
+      showToast('Could not check that invite code. Try again.');
+      return false;
+    }
+    if (!snap.exists()) { showToast("That invite code isn't valid."); return false; }
+    const { groupId, groupName } = snap.data();
+    if (groups.some(g => g.id === groupId)) {
+      selectGroup(groupId);
+      showScreen('app');
+      showToast("You're already in " + groupName);
+      return true;
+    }
+    pendingInvite = { code, groupId, groupName };
+    document.getElementById('join-group-name').textContent = groupName;
+    document.getElementById('join-name-input').value = (user.displayName || '').slice(0, 40);
+    showScreen('join');
+    return true;
+  }
+
+  function showJoinModal() {
+    document.getElementById('join-modal-code').value = '';
+    document.getElementById('join-modal').style.display = 'flex';
+    document.getElementById('join-modal-code').focus();
+  }
+
+  async function joinWithCode(inputId) {
+    const code = document.getElementById(inputId).value;
+    if (await openInvite(code)) {
+      closeModal('join-modal');
+      document.getElementById(inputId).value = '';
+    }
   }
 
   async function handleJoin() {
-    var name = document.getElementById('join-name-input').value.trim();
+    if (!pendingInvite) return;
+    const name = document.getElementById('join-name-input').value.trim();
     if (!name) { showToast('Please enter your name'); return; }
-    var btn = document.querySelector('#mode-join .btn-primary');
+    const btn = document.getElementById('join-btn');
     btn.textContent = 'Joining...'; btn.disabled = true;
+    const { code, groupId } = pendingInvite;
     try {
-      currentUser = name;
-      apiKey = pendingKey; binId = pendingBin;
-      await readBin();
-      saveConfig();
-      pendingKey = ''; pendingBin = '';
-      startApp();
-    } catch(e) {
+      const batch = writeBatch(fb.db);
+      batch.set(memberRef(groupId, user.uid), {
+        name: name.slice(0, 40),
+        photoURL: user.photoURL || null,
+        inviteCode: code,
+        joinedAt: serverTimestamp()
+      });
+      batch.update(groupRef(groupId), { memberUids: arrayUnion(user.uid) });
+      awaitingGroupId = groupId;
+      await batch.commit();
+    } catch (e) {
       console.error('Join failed:', e);
-      showToast('Could not connect. The invite link may be invalid.');
-      resetBtn('#mode-join', 'Join wishlist →');
+      awaitingGroupId = null;
+      showToast('Could not join. The invite code may have been replaced.');
+      resetBtn('join-btn', 'Join Group →');
     }
   }
 
-  function handleSwitch() {
-    var name = document.getElementById('switch-name-input').value.trim();
-    if (!name) { showToast('Please enter your name'); return; }
-    currentUser = name;
-    saveConfig();
-    startApp();
+  function cancelJoin() {
+    pendingInvite = null;
+    screen = 'loading';
+    ensureCurrentGroup();
   }
 
-  async function handleCreate() {
-    var name = document.getElementById('create-name-input').value.trim();
-    var masterKey = document.getElementById('create-api-key-input').value.trim();
-    if (!name || !masterKey) { showToast('Please enter your name and API key'); return; }
-    var btn = document.querySelector('#mode-create .btn-primary');
-    btn.textContent = 'Creating...'; btn.disabled = true;
+  async function leaveGroup() {
+    const g = currentGroup();
+    if (!g) return;
+    if (!confirm('Leave "' + g.name + '"? Your wishes in this Group will be deleted, and you will need a new invite to rejoin.')) return;
+    const gid = g.id;
+    const ops = [];
+    wishes.filter(w => w.ownerUid === user.uid).forEach(function(w) {
+      ops.push(b => b.delete(claimRef(gid, w.id)));
+      ops.push(b => b.delete(wishRef(gid, w.id)));
+    });
+    Object.entries(claims).forEach(function([wid, c]) {
+      if (c && c.uid === user.uid) ops.push(b => b.delete(claimRef(gid, wid)));
+    });
     try {
-      currentUser = name;
-      var result = await createBinAndAccessKey(masterKey);
-      apiKey = result.accessKey;
-      binId = result.binId;
-      saveConfig();
-      startApp();
-    } catch(e) {
-      console.error('Create failed:', e);
-      apiKey = ''; binId = ''; currentUser = '';
-      showToast('Failed to create wishlist. Check your API key.');
-      resetBtn('#mode-create', 'Create wishlist →');
+      await commitInChunks(ops);
+      const batch = writeBatch(fb.db);
+      batch.delete(memberRef(gid, user.uid));
+      batch.update(groupRef(gid), { memberUids: arrayRemove(user.uid) });
+      await batch.commit();
+      store('fw_group', null);
+      showToast('You left ' + g.name);
+    } catch (e) {
+      console.error('Leave failed:', e);
+      showToast('Could not leave the Group. Try again.');
     }
   }
 
-  function logout() {
-    clearInterval(pollingInterval);
-    pollingInterval = null;
-    var savedKey = apiKey;
-    var savedBin = binId;
-    currentUser = ''; allWishes = [];
-    apiKey = savedKey; binId = savedBin;
-    localStorage.setItem('fw_apikey', savedKey);
-    localStorage.setItem('fw_binid', savedBin);
-    localStorage.removeItem('fw_user');
-    document.getElementById('switch-name-input').value = '';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('setup-screen').style.display = 'block';
-    showMode('switch');
-  }
-
-  // ── App init ──
-  function startApp() {
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('header-user').textContent = currentUser;
-    loadWishes();
-    pollingInterval = setInterval(loadWishes, 30000); // refresh every 30s
-  }
-
-  async function loadWishes() {
+  // ── Admin ──
+  async function createGroup(inputId) {
+    if (!isAdmin) return;
+    const input = document.getElementById(inputId);
+    const name = input.value.trim().slice(0, 60);
+    if (!name) { showToast('Please enter a Group name'); return; }
+    const ref = doc(collection(fb.db, 'groups'));
+    const code = newInviteCode();
     try {
-      const data = await readBin();
-      allWishes = data.wishes || [];
-      renderAll();
-    } catch(e) {
-      console.error(e);
+      const batch = writeBatch(fb.db);
+      batch.set(ref, { name, createdBy: user.uid, createdAt: serverTimestamp(), memberUids: [user.uid] });
+      batch.set(inviteRef(code), { groupId: ref.id, groupName: name, createdAt: serverTimestamp() });
+      batch.set(memberRef(ref.id, user.uid), {
+        name: (user.displayName || 'Admin').slice(0, 40),
+        photoURL: user.photoURL || null,
+        inviteCode: code,
+        joinedAt: serverTimestamp()
+      });
+      if (!currentGroupId) store('fw_group', ref.id);
+      await batch.commit();
+      input.value = '';
+      showToast('Created ' + name);
+      if (isOpen('admin-modal')) refreshAdmin();
+    } catch (e) {
+      console.error('Create Group failed:', e);
+      showToast('Could not create the Group.');
+    }
+  }
+
+  function openAdmin() {
+    if (!isAdmin) return;
+    document.getElementById('admin-modal').style.display = 'flex';
+    refreshAdmin();
+  }
+
+  async function refreshAdmin() {
+    const box = document.getElementById('admin-groups');
+    box.innerHTML = '<div class="loading-row" style="padding:1rem 0;"><span class="spinner"></span> Loading Groups...</div>';
+    try {
+      const [groupSnap, inviteSnap] = await Promise.all([
+        getDocs(collection(fb.db, 'groups')),
+        getDocs(collection(fb.db, 'invites'))
+      ]);
+      const codes = {};
+      inviteSnap.forEach(d => { codes[d.data().groupId] = d.id; });
+      adminGroups = await Promise.all(groupSnap.docs.map(async function(g) {
+        const memberSnap = await getDocs(membersCol(g.id));
+        return {
+          id: g.id,
+          ...g.data(),
+          code: codes[g.id] || null,
+          members: memberSnap.docs.map(m => ({ uid: m.id, ...m.data() })).sort(byName)
+        };
+      }));
+      adminGroups.sort(byName);
+      renderAdmin();
+    } catch (e) {
+      console.error('Load Groups failed:', e);
+      box.innerHTML = '<div class="empty-state" style="padding:1rem;"><p>Could not load Groups.</p></div>';
+    }
+  }
+
+  function renderAdmin() {
+    const box = document.getElementById('admin-groups');
+    if (!adminGroups.length) {
+      box.innerHTML = '<div class="empty-state" style="padding:1rem;"><h3>No Groups yet</h3><p>Create your first one above.</p></div>';
+      return;
+    }
+    box.innerHTML = adminGroups.map(g => `
+      <div class="admin-group">
+        <div class="admin-group-head">
+          <strong>${esc(g.name)}</strong>
+          <button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="deleteGroup('${g.id}')">Delete Group</button>
+        </div>
+        <div class="admin-row">
+          <span class="admin-label">Invite</span>
+          ${g.code
+            ? `<code class="invite-code">${esc(g.code)}</code>
+               <button class="btn btn-sm" onclick="copyInvite('${g.code}', true)">🔗 Copy link</button>
+               <button class="btn btn-sm" onclick="copyInvite('${g.code}', false)">Copy code</button>`
+            : `<span class="own-item-badge">No active code</span>`}
+          <button class="btn btn-sm btn-ghost" onclick="rotateInvite('${g.id}')">${g.code ? 'New code' : 'Make code'}</button>
+        </div>
+        <div class="admin-row">
+          <span class="admin-label">Members (${g.members.length})</span>
+          ${g.members.map(m => `
+            <span class="member-chip">${esc(m.name)}${m.uid === user.uid ? ' (you)' : ''}
+              <button title="Remove from Group" onclick="removeMember('${g.id}', '${m.uid}')">×</button>
+            </span>`).join('') || '<span class="own-item-badge">Nobody yet</span>'}
+        </div>
+      </div>`).join('');
+  }
+
+  async function rotateInvite(gid) {
+    const g = adminGroups.find(x => x.id === gid);
+    if (!g) return;
+    if (g.code && !confirm('Replace the invite code for "' + g.name + '"? The old code and link stop working. People already in the Group stay.')) return;
+    const code = newInviteCode();
+    try {
+      const batch = writeBatch(fb.db);
+      if (g.code) batch.delete(inviteRef(g.code));
+      batch.set(inviteRef(code), { groupId: gid, groupName: g.name, createdAt: serverTimestamp() });
+      await batch.commit();
+      showToast('New invite code: ' + code);
+      refreshAdmin();
+    } catch (e) {
+      console.error('Rotate invite failed:', e);
+      showToast('Could not replace the invite code.');
+    }
+  }
+
+  async function removeMember(gid, uid) {
+    const g = adminGroups.find(x => x.id === gid);
+    const m = g && g.members.find(x => x.uid === uid);
+    if (!g || !m) return;
+    if (!confirm('Remove ' + m.name + ' from "' + g.name + '"? Their wishes in this Group will be deleted.')) return;
+    try {
+      const theirWishes = await getDocs(query(wishesCol(gid), where('ownerUid', '==', uid)));
+      const ops = [];
+      theirWishes.forEach(function(w) {
+        ops.push(b => b.delete(claimRef(gid, w.id)));
+        ops.push(b => b.delete(wishRef(gid, w.id)));
+      });
+      await commitInChunks(ops);
+      const batch = writeBatch(fb.db);
+      batch.delete(memberRef(gid, uid));
+      batch.update(groupRef(gid), { memberUids: arrayRemove(uid) });
+      await batch.commit();
+      showToast('Removed ' + m.name);
+      refreshAdmin();
+    } catch (e) {
+      console.error('Remove member failed:', e);
+      showToast('Could not remove ' + m.name + '.');
+    }
+  }
+
+  async function deleteGroup(gid) {
+    const g = adminGroups.find(x => x.id === gid);
+    if (!g) return;
+    if (!confirm('Delete "' + g.name + '" and every wish in it? This cannot be undone.')) return;
+    try {
+      const [wishSnap, memberSnap] = await Promise.all([getDocs(wishesCol(gid)), getDocs(membersCol(gid))]);
+      const ops = [];
+      wishSnap.forEach(function(w) {
+        ops.push(b => b.delete(claimRef(gid, w.id)));
+        ops.push(b => b.delete(wishRef(gid, w.id)));
+      });
+      memberSnap.forEach(m => ops.push(b => b.delete(memberRef(gid, m.id))));
+      if (g.code) ops.push(b => b.delete(inviteRef(g.code)));
+      ops.push(b => b.delete(groupRef(gid)));
+      await commitInChunks(ops);
+      showToast('Deleted ' + g.name);
+      refreshAdmin();
+    } catch (e) {
+      console.error('Delete Group failed:', e);
+      showToast('Could not finish deleting the Group. Try again.');
+    }
+  }
+
+  function copyInvite(code, asLink) {
+    const text = asLink ? inviteLink(code) : code;
+    navigator.clipboard.writeText(text).then(function() {
+      showToast(asLink ? 'Invite link copied!' : 'Invite code copied!');
+    }).catch(function() {
+      prompt(asLink ? 'Copy this invite link:' : 'Copy this invite code:', text);
+    });
+  }
+
+  async function commitInChunks(ops) {
+    for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(fb.db);
+      ops.slice(i, i + BATCH_LIMIT).forEach(op => op(batch));
+      await batch.commit();
     }
   }
 
   // ── Rendering ──
+  function memberName(uid) {
+    return (members[uid] && members[uid].name) || 'Former member';
+  }
+
+  // Claims by people who have since left the Group count as unclaimed.
+  function claimOf(w) {
+    if (w.ownerUid === user.uid) return null;
+    const c = claims[w.id];
+    const g = currentGroup();
+    return c && g && g.memberUids.includes(c.uid) ? c : null;
+  }
+
   function getFilteredWishes() {
-    let list = allWishes;
-    if (currentView === 'mine') list = list.filter(w => w.owner === currentUser);
-    if (currentView === 'claimed') list = list.filter(w => w.claimedBy === currentUser);
-    if (currentView === 'person' && filterPersonName) list = list.filter(w => w.owner === filterPersonName);
+    let list = wishes;
+    if (currentView === 'mine') list = list.filter(w => w.ownerUid === user.uid);
+    if (currentView === 'claimed') list = list.filter(w => { const c = claimOf(w); return c && c.uid === user.uid; });
+    if (currentView === 'person' && filterPersonUid) list = list.filter(w => w.ownerUid === filterPersonUid);
     if (currentFilter === 'high') list = list.filter(w => w.priority === 'high');
     if (currentFilter === 'medium') list = list.filter(w => w.priority === 'medium');
     if (currentFilter === 'low') list = list.filter(w => w.priority === 'low');
-    if (currentFilter === 'unclaimed') list = list.filter(w => !w.claimedBy);
+    if (currentFilter === 'unclaimed') list = list.filter(w => !claimOf(w));
     return list;
   }
 
   function renderAll() {
+    if (!currentGroupId) return;
     renderGrid();
     renderSidebar();
     renderCounts();
+    document.getElementById('header-user').textContent = memberName(user.uid) === 'Former member'
+      ? (user.displayName || user.email || '')
+      : memberName(user.uid);
+  }
+
+  function renderGroupSelect() {
+    const sel = document.getElementById('group-select');
+    sel.innerHTML = groups.map(g =>
+      `<option value="${g.id}" ${g.id === currentGroupId ? 'selected' : ''}>${esc(g.name)}</option>`
+    ).join('') + '<option value="__join">+ Join with code…</option>';
   }
 
   function renderGrid() {
@@ -842,78 +1379,88 @@
 
   function avatarColor(name) {
     const colors = ['#FDA4AF','#86EFAC','#7DD3FC','#FDE68A','#C4B5FD','#FDBA74','#6EE7B7'];
-    let h = 0; for(let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
+    let h = 0; for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
     return colors[h];
   }
-  function initials(name) { return name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2); }
+  function initials(name) { return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2); }
+
+  function safeLink(url) {
+    return /^https?:\/\//i.test(url || '') ? url : '';
+  }
 
   function renderCard(w) {
-    const isOwner = w.owner === currentUser;
-    const isClaimed = !!w.claimedBy;
-    const iClaimedIt = w.claimedBy === currentUser;
+    const isOwner = w.ownerUid === user.uid;
+    const claim = claimOf(w);
+    const iClaimedIt = !!claim && claim.uid === user.uid;
 
     const claimBtn = isOwner
       ? `<span class="own-item-badge">Your wish</span>`
       : iClaimedIt
         ? `<button class="btn btn-sm btn-ghost" onclick="unclaimWish('${w.id}')">Unclaim</button>`
-        : !isClaimed
+        : !claim
           ? `<button class="btn btn-sm" onclick="claimWish('${w.id}')">🎁 I'll gift this</button>`
-          : `<span class="claimed-by">Claimed by ${isOwner ? 'someone' : w.claimedBy}</span>`;
+          : `<span class="claimed-by">Claimed by ${esc(memberName(claim.uid))}</span>`;
 
     const editBtn = isOwner
-      ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>
-         <button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="deleteWish('${w.id}')">Delete</button>`
+      ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
       : '';
+    const deleteBtn = (isOwner || isAdmin)
+      ? `<button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="deleteWish('${w.id}')">Delete</button>`
+      : '';
+    const link = safeLink(w.link);
 
     return `
-      <div class="wish-card ${isClaimed ? 'claimed' : ''}" id="card-${w.id}">
+      <div class="wish-card ${claim ? 'claimed' : ''}" id="card-${w.id}">
         <div>
           <div class="wish-card-title">${esc(w.name)}</div>
           <div class="wish-card-meta" style="margin-top:0.4rem;">
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
             ${w.price ? `<span class="price-tag">${esc(w.price)}</span>` : ''}
-            <span class="tag">${esc(w.owner)}</span>
+            <span class="tag">${esc(memberName(w.ownerUid))}</span>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
-        ${w.link ? `<a class="wish-card-link" href="${esc(w.link)}" target="_blank">View item ↗</a>` : ''}
+        ${link ? `<a class="wish-card-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">View item ↗</a>` : ''}
         <div class="wish-card-actions">
           ${claimBtn}
           <span style="flex:1"></span>
           ${editBtn}
+          ${deleteBtn}
         </div>
       </div>`;
   }
 
   function renderSidebar() {
-    const members = [...new Set(allWishes.map(w => w.owner))];
     const nav = document.getElementById('family-nav');
-    nav.innerHTML = members.map(m => {
-      const count = allWishes.filter(w => w.owner === m).length;
-      const col = avatarColor(m);
-      return `<div class="sidebar-item ${currentView==='person'&&filterPersonName===m?'active':''}"
-                   onclick="setPersonView('${m}')">
-        <div class="sidebar-avatar" style="background:${col}20;color:${col};">${initials(m)}</div>
-        ${esc(m)} <span class="count">${count}</span>
-      </div>`;
-    }).join('');
+    nav.innerHTML = Object.entries(members)
+      .sort((a, b) => a[1].name.localeCompare(b[1].name))
+      .map(function([uid, m]) {
+        const count = wishes.filter(w => w.ownerUid === uid).length;
+        const col = avatarColor(m.name);
+        return `<div class="sidebar-item ${currentView === 'person' && filterPersonUid === uid ? 'active' : ''}"
+                     onclick="setPersonView('${uid}')">
+          <div class="sidebar-avatar" style="background:${col}20;color:${col};">${esc(initials(m.name))}</div>
+          ${esc(m.name)} <span class="count">${count}</span>
+        </div>`;
+      }).join('');
   }
 
   function renderCounts() {
-    document.getElementById('count-all').textContent = allWishes.length;
-    document.getElementById('count-mine').textContent = allWishes.filter(w=>w.owner===currentUser).length;
-    document.getElementById('count-claimed').textContent = allWishes.filter(w=>w.claimedBy===currentUser).length;
+    document.getElementById('count-all').textContent = wishes.length;
+    document.getElementById('count-mine').textContent = wishes.filter(w => w.ownerUid === user.uid).length;
+    document.getElementById('count-claimed').textContent = wishes.filter(w => { const c = claimOf(w); return c && c.uid === user.uid; }).length;
   }
 
   // ── Navigation ──
   function setView(view) {
     currentView = view;
-    filterPersonName = null;
+    filterPersonUid = null;
+    const g = currentGroup();
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
     if (view === 'all') {
       document.getElementById('nav-all').classList.add('active');
       document.getElementById('view-title').innerHTML = 'Everyone\'s <em>wishlist</em>';
-      document.getElementById('view-subtitle').textContent = 'Items added by the whole family';
+      document.getElementById('view-subtitle').textContent = g ? 'Items added by everyone in ' + g.name : 'Items added by the whole family';
     } else if (view === 'mine') {
       document.getElementById('nav-mine').classList.add('active');
       document.getElementById('view-title').innerHTML = 'My <em>wishlist</em>';
@@ -926,15 +1473,14 @@
     renderAll();
   }
 
-  function setPersonView(name) {
+  function setPersonView(uid) {
     currentView = 'person';
-    filterPersonName = name;
+    filterPersonUid = uid;
+    const name = memberName(uid);
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
     document.getElementById('view-title').innerHTML = `${esc(name)}'s <em>wishlist</em>`;
-    document.getElementById('view-subtitle').textContent = `${esc(name)}'s wishes`;
+    document.getElementById('view-subtitle').textContent = `${name}'s wishes`;
     renderAll();
-    // highlight active
-    renderSidebar();
   }
 
   function setFilter(f, el) {
@@ -945,9 +1491,8 @@
   }
 
   // ── Wish CRUD ──
-  let editingId = null;
-
   function showAddModal() {
+    if (!currentGroupId) return;
     editingId = null;
     document.getElementById('modal-title').textContent = 'Add a wish';
     document.getElementById('wish-name').value = '';
@@ -960,7 +1505,7 @@
   }
 
   function editWish(id) {
-    const w = allWishes.find(x => x.id === id);
+    const w = wishes.find(x => x.id === id);
     if (!w) return;
     editingId = id;
     document.getElementById('modal-title').textContent = 'Edit wish';
@@ -972,96 +1517,86 @@
     document.getElementById('wish-modal').style.display = 'flex';
   }
 
-  function closeModal() { document.getElementById('wish-modal').style.display = 'none'; }
-  function closeModalIfOutside(e) { if (e.target === document.getElementById('wish-modal')) closeModal(); }
-
   async function saveWish() {
     const name = document.getElementById('wish-name').value.trim();
     if (!name) { showToast('Please enter a name for your wish'); return; }
+    const link = document.getElementById('wish-link').value.trim();
+    if (link && !safeLink(link)) { showToast('Links must start with http:// or https://'); return; }
 
-    const wish = {
-      id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-      name,
-      price: document.getElementById('wish-price').value.trim(),
+    const fields = {
+      name: name.slice(0, 200),
+      price: document.getElementById('wish-price').value.trim().slice(0, 40),
       priority: document.getElementById('wish-priority').value,
-      link: document.getElementById('wish-link').value.trim(),
-      notes: document.getElementById('wish-notes').value.trim(),
-      owner: currentUser,
-      claimedBy: editingId ? (allWishes.find(w=>w.id===editingId)?.claimedBy||null) : null,
-      createdAt: editingId ? (allWishes.find(w=>w.id===editingId)?.createdAt||Date.now()) : Date.now()
+      link: link.slice(0, 2000),
+      notes: document.getElementById('wish-notes').value.trim().slice(0, 1000)
     };
-
-    const prev = allWishes.slice();
-    if (editingId) {
-      const idx = allWishes.findIndex(w => w.id === editingId);
-      if (idx >= 0) allWishes[idx] = wish; else allWishes.push(wish);
-    } else {
-      allWishes.push(wish);
-    }
-    closeModal();
-    renderAll();
-    showToast(editingId ? 'Wish updated!' : 'Wish added!');
+    const gid = currentGroupId;
+    const id = editingId;
+    closeModal('wish-modal');
 
     try {
-      await writeBin({ wishes: allWishes });
-    } catch(e) {
-      allWishes = prev;
-      renderAll();
+      if (id) await updateDoc(wishRef(gid, id), fields);
+      else await addDoc(wishesCol(gid), { ...fields, ownerUid: user.uid, createdAt: serverTimestamp() });
+      showToast(id ? 'Wish updated!' : 'Wish added!');
+    } catch (e) {
+      console.error('Save failed:', e);
       showToast('Failed to save. Try again.');
     }
   }
 
   async function deleteWish(id) {
     if (!confirm('Remove this wish?')) return;
-    const prev = allWishes.slice();
-    allWishes = allWishes.filter(w => w.id !== id);
-    renderAll();
+    const gid = currentGroupId;
     try {
-      await writeBin({ wishes: allWishes });
+      const batch = writeBatch(fb.db);
+      batch.delete(claimRef(gid, id));
+      batch.delete(wishRef(gid, id));
+      await batch.commit();
       showToast('Wish removed');
-    } catch(e) {
-      allWishes = prev;
-      renderAll();
+    } catch (e) {
+      console.error('Delete failed:', e);
       showToast('Failed to delete. Try again.');
     }
   }
 
   async function claimWish(id) {
-    const w = allWishes.find(x => x.id === id);
+    const w = wishes.find(x => x.id === id);
     if (!w) return;
-    if (w.claimedBy) { showToast('Already claimed!'); return; }
-    w.claimedBy = currentUser;
-    renderAll();
+    if (claimOf(w)) { showToast('Already claimed!'); return; }
     try {
-      await writeBin({ wishes: allWishes });
+      await setDoc(claimRef(currentGroupId, id), { uid: user.uid, wishOwnerUid: w.ownerUid, claimedAt: serverTimestamp() });
       showToast('🎁 Claimed! You\'re gifting this.');
-    } catch(e) {
-      w.claimedBy = null;
-      renderAll();
-      showToast('Failed to claim. Try again.');
+    } catch (e) {
+      console.error('Claim failed:', e);
+      showToast('Someone else just claimed this.');
     }
   }
 
   async function unclaimWish(id) {
-    const w = allWishes.find(x => x.id === id);
-    if (!w) return;
-    const prev = w.claimedBy;
-    w.claimedBy = null;
-    renderAll();
     try {
-      await writeBin({ wishes: allWishes });
+      await deleteDoc(claimRef(currentGroupId, id));
       showToast('Unclaimed');
-    } catch(e) {
-      w.claimedBy = prev;
-      renderAll();
+    } catch (e) {
+      console.error('Unclaim failed:', e);
       showToast('Failed to unclaim. Try again.');
     }
   }
 
+  // ── Modals ──
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+  function closeModalIfOutside(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+  function isOpen(id) { return document.getElementById(id).style.display === 'flex'; }
+
   // ── Utils ──
   function esc(s) {
     if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function byName(a, b) { return (a.name || '').localeCompare(b.name || ''); }
+  function millis(ts) { return ts && ts.toMillis ? ts.toMillis() : Date.now(); }
+  function resetBtn(id, label) {
+    const btn = document.getElementById(id);
+    if (btn) { btn.textContent = label; btn.disabled = false; }
   }
 
   let toastTimer;
@@ -1073,39 +1608,29 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
-  // ── Invite link ──
-  function copyInviteLink() {
-    const params = new URLSearchParams({ key: apiKey, bin: binId });
-    const url = location.origin + location.pathname + '?' + params.toString();
-    navigator.clipboard.writeText(url).then(() => {
-      const btn = document.getElementById('invite-btn');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => { btn.textContent = '🔗 Invite link'; }, 2000);
-    }).catch(() => {
-      prompt('Copy this invite link:', url);
-    });
-  }
+  // Inline onclick handlers need these on window, since module scope isn't global.
+  Object.assign(window, {
+    signIn, signOutUser, handleJoin, cancelJoin, joinWithCode, onGroupSelect, leaveGroup,
+    createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
+    setView, setPersonView, setFilter,
+    showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish,
+    closeModal, closeModalIfOutside
+  });
 
   // ── Boot ──
-  let pendingKey = '', pendingBin = '';
-  document.addEventListener('DOMContentLoaded', function() {
-    loadConfig();
-  const urlParams = new URLSearchParams(location.search);
-  const urlKey = urlParams.get('key');
-  const urlBin = urlParams.get('bin');
-  history.replaceState(null, '', location.pathname);
-
-  if (currentUser && apiKey && binId) {
-    startApp();
-  } else if (urlKey && urlBin) {
-    pendingKey = urlKey; pendingBin = urlBin;
-    showMode('join');
-  } else if (apiKey && binId) {
-    showMode('switch');
-  } else {
-    showMode('create');
+  const urlCode = new URLSearchParams(location.search).get('invite');
+  if (urlCode) {
+    sessionStore('fw_invite', normalizeCode(urlCode));
+    history.replaceState(null, '', location.pathname);
   }
-  }); // end DOMContentLoaded
+
+  if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('YOUR_')) {
+    showScreen('config');
+  } else {
+    const app = initializeApp(firebaseConfig);
+    fb = { auth: getAuth(app), db: getFirestore(app) };
+    onAuthStateChanged(fb.auth, u => { u ? handleSignedIn(u) : handleSignedOut(); });
+  }
 </script>
 </body>
 </html>

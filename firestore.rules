@@ -1,0 +1,130 @@
+rules_version = '2';
+
+// Firestore security rules for Family Wishlist.
+// Paste into Firebase console → Firestore Database → Rules, then click Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function groupData(gid) {
+      return get(/databases/$(database)/documents/groups/$(gid)).data;
+    }
+    function isMember(gid) {
+      return signedIn() && request.auth.uid in groupData(gid).memberUids;
+    }
+    function validInvite(gid, code) {
+      return code is string
+        && exists(/databases/$(database)/documents/invites/$(code))
+        && get(/databases/$(database)/documents/invites/$(code)).data.groupId == gid;
+    }
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+    function isText(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    // ── Admins ── added by hand in the console; the app can never write them.
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ── Invites ── the document id is the invite code. Anyone signed in can look up a
+    // code they already have, but only admins can list, create, or delete codes.
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list, delete: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['groupId', 'groupName', 'createdAt'])
+        && existsAfter(/databases/$(database)/documents/groups/$(request.resource.data.groupId));
+    }
+
+    // ── Groups ──
+    match /groups/{gid} {
+      // Join: add exactly yourself, in the same batch that creates your member doc
+      // (which in turn needs a valid invite code — see members below).
+      function joining() {
+        return signedIn()
+          && onlyChanged(['memberUids'])
+          && !(request.auth.uid in resource.data.memberUids)
+          && request.resource.data.memberUids.toSet() == resource.data.memberUids.toSet().union([request.auth.uid].toSet())
+          && existsAfter(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid));
+      }
+      // Leave: remove exactly yourself, in the same batch that deletes your member doc.
+      function leaving() {
+        return signedIn()
+          && onlyChanged(['memberUids'])
+          && request.auth.uid in resource.data.memberUids
+          && request.resource.data.memberUids.toSet() == resource.data.memberUids.toSet().difference([request.auth.uid].toSet())
+          && !existsAfter(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid));
+      }
+
+      allow get, list: if isAdmin() || (signedIn() && request.auth.uid in resource.data.memberUids);
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'createdBy', 'createdAt', 'memberUids'])
+        && isText(request.resource.data.name, 60) && request.resource.data.name.size() > 0
+        && request.resource.data.memberUids == [request.auth.uid];
+      allow update: if isAdmin() || joining() || leaving();
+      allow delete: if isAdmin();
+
+      // ── Members ── one doc per person, id = their user id.
+      match /members/{uid} {
+        allow read: if isAdmin() || isMember(gid);
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'photoURL', 'inviteCode', 'joinedAt'])
+          && isText(request.resource.data.name, 40) && request.resource.data.name.size() > 0
+          && (isAdmin() || validInvite(gid, request.resource.data.inviteCode));
+        allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      }
+
+      // ── Wishes ──
+      match /wishes/{wid} {
+        function validWish(d) {
+          return d.keys().hasOnly(['name', 'price', 'priority', 'link', 'notes', 'ownerUid', 'createdAt'])
+            && isText(d.name, 200) && d.name.size() > 0
+            && isText(d.price, 40)
+            && d.priority in ['high', 'medium', 'low']
+            && isText(d.link, 2000) && (d.link == '' || d.link.matches('(?i)https?://.+'))
+            && isText(d.notes, 1000);
+        }
+
+        allow read: if isAdmin() || isMember(gid);
+        allow create: if isMember(gid)
+          && validWish(request.resource.data)
+          && request.resource.data.ownerUid == request.auth.uid;
+        allow update: if isMember(gid)
+          && resource.data.ownerUid == request.auth.uid
+          && validWish(request.resource.data)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'createdAt']);
+        allow delete: if isAdmin() || (isMember(gid) && resource.data.ownerUid == request.auth.uid);
+      }
+
+      // ── Claims ── one doc per claimed wish, id = the wish id. Kept apart from the
+      // wish so its owner can never read who (or whether anyone) is gifting it.
+      match /claims/{wid} {
+        function validClaim() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['uid', 'wishOwnerUid', 'claimedAt'])
+            && d.uid == request.auth.uid
+            && d.wishOwnerUid == get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data.ownerUid
+            && d.wishOwnerUid != request.auth.uid;
+        }
+
+        allow get: if isMember(gid) && (resource == null || resource.data.wishOwnerUid != request.auth.uid);
+        allow create: if isMember(gid) && validClaim();
+        // A claim left behind by someone no longer in the Group can be taken over.
+        allow update: if isMember(gid) && validClaim() && !(resource.data.uid in groupData(gid).memberUids);
+        allow delete: if isAdmin() || (signedIn() && (
+          resource == null
+          || resource.data.uid == request.auth.uid
+          || resource.data.wishOwnerUid == request.auth.uid));
+      }
+    }
+  }
+}

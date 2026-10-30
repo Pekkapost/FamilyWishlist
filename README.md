@@ -6,121 +6,159 @@
 
 ```
 FamilyWishlist/
-└── index.html          # the whole app — markup, styles, and script in one file
+├── index.html          # the whole app — markup, styles, and script in one file
+├── config.js           # Firebase web app config (public identifiers, not secrets)
+└── firestore.rules     # Firestore security rules — who can read and write what
 ```
 
 ## Tech Stack
 
 | Dependency | Version | Purpose |
 |---|---|---|
-| [JSONBin.io](https://jsonbin.io/) | API v3 | Shared storage for the wishlist (one private bin per family) |
+| [Firebase Authentication](https://firebase.google.com/docs/auth) | JS SDK 10.12.2 | Google sign-in |
+| [Cloud Firestore](https://firebase.google.com/docs/firestore) | JS SDK 10.12.2 | Groups, members, wishes, and claims, with live updates |
 | [Google Fonts](https://fonts.google.com/) | — | Lora (headings) + DM Sans (body) |
 | HTML / CSS / JavaScript | — | No framework, no build step |
 
-Everything lives in [`index.html`](index.html). There is nothing to install or compile.
+The app is [`index.html`](index.html); the Firebase SDK loads from Google's CDN. All access control lives in [`firestore.rules`](firestore.rules) and is enforced by Firebase's servers, not the page.
 
 ## Setup
 
-### **1. Get a JSONBin API key**
+Everything fits on Firebase's free **Spark** plan — no billing account needed.
 
-1. Sign up at <https://jsonbin.io>.
-2. Copy your **Master API Key** from the dashboard.
+### **1. Create a Firebase project**
 
-The Master Key is only used once, during setup, and is never stored.
+1. Go to the [Firebase console](https://console.firebase.google.com/) and click **Create a project**. Google Analytics is not needed.
+2. **Build → Authentication → Get started → Sign-in method** → enable **Google**, pick a support email, and save.
+3. **Build → Firestore Database → Create database**. Pick a location near you and start in **production mode**.
 
-### **2. Host the page**
+### **2. Publish the security rules**
 
-The invite link is built from the page's own URL, so the app needs to be served from somewhere your family can reach. Any static host works — the simplest is **GitHub Pages**:
+In **Firestore Database → Rules**, replace the contents with [`firestore.rules`](firestore.rules) and click **Publish**. Without these rules nobody can read or write anything.
 
-1. On GitHub, open the repo's *Settings → Pages*.
-2. Under *Build and deployment*, set *Source* to **Deploy from a branch**, pick `main` and `/ (root)`, and save.
-3. After a minute the site is live at `https://<user>.github.io/FamilyWishlist/`.
+### **3. config.js**
 
-For local testing you can open `index.html` directly in a browser, but invite links generated that way point at a file on your machine and won't work for anyone else.
+**Project settings → General → Your apps → Web (`</>`)**. Register an app (no Hosting needed), then copy the four values from the `firebaseConfig` it shows into [`config.js`](config.js):
 
-### **3. Create the wishlist**
+```js
+export const firebaseConfig = {
+  apiKey: '...',
+  authDomain: '<project-id>.firebaseapp.com',
+  projectId: '<project-id>',
+  appId: '...'
+};
+```
 
-Open the page, enter your name and paste the Master API Key, then click **Create wishlist →**. The app:
+These identify the project and are meant to be public — commit them. Anything they could be used for is still checked against `firestore.rules`.
 
-1. Creates a private bin named `family-wishlist` holding `{ "wishes": [] }`.
-2. Creates a scoped access key (`family-wishlist-key`) that can only **read** and **update** bins — no create, no delete.
-3. Saves the bin id, access key, and your name to `localStorage` and opens the app.
+### **4. Host the page**
 
-### **4. Invite the family**
+The page loads as an ES module, so it has to be served over http(s) — opening `index.html` as a file shows a "couldn't start" message.
 
-Click **🔗 Invite link** in the header to copy a link of the form `…/index.html?key=<access key>&bin=<bin id>`. Anyone who opens it only has to enter their name to join. The query string is stripped from the address bar as soon as the page loads.
+**GitHub Pages** — on GitHub, *Settings → Pages → Build and deployment*, set *Source* to **Deploy from a branch**, pick `main` and `/ (root)`, and save. The site is live at `https://<user>.github.io/FamilyWishlist/` after a minute.
+
+**Locally** — from the repo root:
+
+```bash
+python -m http.server 8000
+```
+
+then open <http://localhost:8000>.
+
+Google sign-in only works on domains Firebase trusts. `localhost` is allowed by default; for GitHub Pages add `<user>.github.io` under **Authentication → Settings → Authorized domains**.
+
+### **5. Make yourself an admin**
+
+1. Open the app and sign in with Google once.
+2. In the console, **Authentication → Users**, copy your **User UID**.
+3. **Firestore Database → Data → Start collection**. Collection ID `admins`, Document ID your UID, and add any field (e.g. `role` = `admin`). Save.
+4. Reload the app. You now see **⚙ Groups** in the header, or a *Create Group* form if you're in no Groups yet.
+
+Admins can only be added this way — the app itself can never write to `admins`.
+
+### **6. Create a Group and invite family**
+
+Create a Group from **⚙ Groups**. Each Group gets an 8-character invite code; share either the code or the **🔗 Copy link** link (`…/?invite=CODE`). Family members open the link — or enter the code — sign in with Google, pick the name shown to everyone, and they're in.
 
 ## Architecture
 
-All code is in [`index.html`](index.html); the script is split into labelled sections.
+All app code is in [`index.html`](index.html); the script is split into labelled sections.
 
 | Section | Description |
 |---|---|
-| **State** | Current user, access key, bin id, the in-memory `allWishes` array, and the active view/filter. |
-| **Persistence** | `saveConfig()` / `loadConfig()` — reads and writes `fw_user`, `fw_apikey`, `fw_binid` in `localStorage`. |
-| **JSONBin API** | `readBin()`, `writeBin()`, and `createBinAndAccessKey()`. Reads and writes use the scoped `X-Access-Key`; only setup uses `X-Master-Key`. |
-| **Setup modes** | The three entry screens — **create** (new wishlist), **join** (arrived via invite link), **switch** (credentials saved, pick a name). |
-| **App init** | `startApp()` loads the bin and polls it every 30 seconds to pick up other family members' changes. |
-| **Rendering** | Builds the card grid, the family sidebar, and the sidebar counts from `allWishes`. |
+| **State** | Signed-in user, admin flag, the user's Groups, and the current Group's members, wishes, and claims. |
+| **Persistence** | `localStorage` remembers the last Group you viewed; `sessionStorage` holds an invite code across sign-in. Neither is trusted for access. |
+| **Screens** | Setup-card modes — *loading*, *config*, *sign in*, *join*, *no Group* — and the main app. |
+| **Auth** | Google sign-in popup. On sign-in, checks `admins/{uid}` and starts the Groups listener. |
+| **Groups** | Live listener on the Groups you belong to, and per-Group listeners for members, wishes, and claims. |
+| **Invites & joining** | Looks up an invite code, shows the join screen, and joins in one batch (member doc + Group membership). Also *Leave this Group*. |
+| **Admin** | Create Groups, copy or replace invite codes, remove members, delete Groups. |
+| **Rendering** | Card grid, family sidebar, counts, and the Group picker. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
-| **Wish CRUD** | Add, edit, delete, claim, unclaim. Each change updates the UI immediately, writes the full list back to the bin, and rolls back with a toast if the write fails. |
-| **Invite link** | Copies the join URL to the clipboard, falling back to a prompt if clipboard access is blocked. |
-| **Boot** | On `DOMContentLoaded`, picks a setup mode — or goes straight into the app — from saved config and the URL. |
+| **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
+| **Boot** | Saves `?invite=` from the URL, then starts Firebase — or shows the config screen if [`config.js`](config.js) still has placeholders. |
 
-Each wish is stored as:
+### Data model
 
-```json
-{
-  "id": "lq2x8k3fa1b2",
-  "name": "Cozy knit blanket",
-  "price": "$50",
-  "priority": "high",
-  "link": "https://...",
-  "notes": "Grey, queen size",
-  "owner": "Mom",
-  "claimedBy": null,
-  "createdAt": 1714200000000
-}
 ```
+admins/{uid}                      # exists = admin; added by hand in the console
+invites/{code}                    # { groupId, groupName, createdAt }
+groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
+  ├── members/{uid}               # { name, photoURL, inviteCode, joinedAt }
+  ├── wishes/{wishId}             # { name, price, priority, link, notes, ownerUid, createdAt }
+  └── claims/{wishId}             # { uid, wishOwnerUid, claimedAt }
+```
+
+### Security rules
+
+| Who | Can |
+|---|---|
+| **Anyone signed in** | Look up an invite code they already have. Join that code's Group under their own user id. |
+| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Leave. |
+| **Wish owners** | Never read claims on their own wishes — the surprise is enforced by the server, not hidden in the page. |
+| **Admins** | Create and delete Groups, create and replace invite codes, remove members, delete any wish. |
 
 ## Features
 
 | Surface | Summary |
 |---|---|
-| **Setup Screen** | Create a new wishlist, join from an invite link, or switch user on a device that already has one saved. |
-| **Sidebar** | **Browse** views with counts · **Family** list with one entry per person who has added a wish. |
+| **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
+| **Header** | Group picker (with *+ Join with code…*) · your name · **⚙ Groups** for admins · add wish · sign out. |
+| **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, notes, and an optional link. Filter chips above the grid. |
 | **Add/Edit Modal** | Item name, approximate price, priority, link, and notes. |
-
-### Sidebar
-
-| Element | Behaviour |
-|---|---|
-| **Everyone's list** | Every wish from the whole family. |
-| **My wishlist** | Wishes you added for yourself. |
-| **I'm gifting** | Wishes you have claimed. |
-| **Family** | One entry per wish owner, with a coloured initials avatar and their wish count. Click to see just their list. |
+| **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
 
 | Element | Behaviour |
 |---|---|
 | **Filter chips** | All · 🔴 High priority · 🟡 Medium · ⚪ Low · Not yet claimed. Combine with any sidebar view. |
-| **Your own wishes** | Show *Edit* and *Delete*, and a *Your wish* badge in place of the claim button. |
-| **Other people's wishes** | *🎁 I'll gift this* to claim; *Unclaim* if you claimed it; otherwise *Claimed by &lt;name&gt;*. |
-| **Claimed cards** | Dimmed with a **✓ Claimed** badge. |
+| **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
+| **Other people's wishes** | *🎁 I'll gift this* to claim; *Unclaim* if you claimed it; otherwise *Claimed by &lt;name&gt;*, dimmed. |
+| **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
+
+### Manage Groups
+
+| Element | Behaviour |
+|---|---|
+| **Create** | New Group with you as its first member and a fresh invite code. |
+| **Invite** | *Copy link* · *Copy code* · *New code* — replacing a code stops the old one and its links from working; people already in the Group stay. |
+| **Members** | Click × to remove someone. Their wishes in that Group are deleted. |
+| **Delete Group** | Deletes the Group, its members, wishes, claims, and invite code. |
 
 ## Limitations
 
 | Area | Notes |
 |---|---|
-| **Identity** | There are no accounts — a user is just the name typed in. Anyone with the invite link can sign in under any name, including someone else's. |
-| **Surprise** | Claimed cards are dimmed and badged for everyone, including the wish's owner, so owners can see *that* a wish was claimed (but not by whom). |
-| **Invite link** | The access key travels in the link itself. Share it only with family; anyone holding it can read and edit the whole list. |
-| **Concurrent edits** | Every change writes the full list back, and other devices only refresh every 30 seconds. Two people editing at nearly the same time can overwrite each other — last write wins. |
-| **Storage** | Saved config lives in the browser's `localStorage`. Clearing site data or switching browsers means re-joining with the invite link. |
+| **Invite codes** | Codes don't expire. Anyone holding a code can join until you replace it with *New code*. |
+| **Display names** | Picked when joining and fixed after that. To change one, remove the person and re-invite them. |
+| **Admins** | Added by hand in the Firebase console (Setup step 5). There is no in-app admin management. |
+| **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead. |
+| **Phones** | The sidebar is hidden below 680 px wide, so the person filter and *Leave this Group* are desktop-only. |
+| **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
+| **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
 | **Price** | Free text, not a number — no sorting or totals. |
-| **JSONBin** | Depends on JSONBin.io being up, and on your account's free-tier request limits. |
 
 ## Authors
 
