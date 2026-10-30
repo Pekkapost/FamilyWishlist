@@ -433,15 +433,13 @@
       gap: 0.4rem;
       margin-top: auto;
     }
-    .wish-card-link {
-      font-size: 0.78rem;
-      color: var(--accent);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
+    .wish-card-title a {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--border-strong);
+      text-underline-offset: 3px;
     }
-    .wish-card-link:hover { text-decoration: underline; }
+    .wish-card-title a:hover { color: var(--accent); text-decoration-color: currentColor; }
     .claimed-by {
       font-size: 0.75rem;
       color: var(--green);
@@ -1544,7 +1542,9 @@
     return `
       <div class="wish-card ${claim ? 'claimed' : ''}" id="card-${w.id}">
         <div>
-          <div class="wish-card-title">${esc(w.name)}</div>
+          <div class="wish-card-title">${link
+            ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
+            : esc(w.name)}</div>
           <div class="wish-card-meta" style="margin-top:0.4rem;">
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
             ${w.price ? `<span class="price-tag">${esc(displayPrice(w.price))}</span>` : ''}
@@ -1552,7 +1552,6 @@
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
-        ${link ? `<a class="wish-card-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">View item ↗</a>` : ''}
         <div class="wish-card-actions">
           ${claimBtn}
           <span style="flex:1"></span>
