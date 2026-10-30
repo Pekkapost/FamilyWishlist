@@ -88,9 +88,10 @@ service cloud.firestore {
           && isText(request.resource.data.name, 40) && request.resource.data.name.size() > 0
           && validPhoto(request.resource.data.get('photoURL', null))
           && (isAdmin() || validInvite(gid, request.resource.data.inviteCode));
-        // Members can change their own profile picture, and nothing else.
+        // Members can change their own name and profile picture, and nothing else.
         allow update: if signedIn() && request.auth.uid == uid && isMember(gid)
-          && onlyChanged(['photoURL'])
+          && onlyChanged(['name', 'photoURL'])
+          && isText(request.resource.data.name, 40) && request.resource.data.name.size() > 0
           && validPhoto(request.resource.data.get('photoURL', null));
         allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
       }
@@ -100,7 +101,7 @@ service cloud.firestore {
         function validWish(d) {
           return d.keys().hasOnly(['name', 'price', 'priority', 'link', 'notes', 'ownerUid', 'createdAt'])
             && isText(d.name, 200) && d.name.size() > 0
-            && isText(d.price, 40)
+            && d.price is string && (d.price == '' || d.price.matches('[0-9]{1,7}([.][0-9]{1,2})?'))
             && d.priority in ['high', 'medium', 'low']
             && isText(d.link, 2000) && (d.link == '' || d.link.matches('(?i)https?://.+'))
             && isText(d.notes, 1000);

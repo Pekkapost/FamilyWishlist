@@ -70,6 +70,8 @@ then open <http://localhost:8000>.
 
 Google sign-in only works on domains Firebase trusts. `localhost` is allowed by default; for GitHub Pages add `<user>.github.io` under **Authentication → Settings → Authorized domains**.
 
+Optionally, lock the API key to your sites: in [Google Cloud → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), open **Browser key (auto created by Firebase)**, choose **Websites**, and add `https://<user>.github.io/*`, `https://<project-id>.firebaseapp.com/*` (Google sign-in runs there), and any `http://localhost:<port>/*` you test on.
+
 ### **5. Make yourself an admin**
 
 1. Open the app and sign in with Google once.
@@ -102,13 +104,13 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 | Section | Description |
 |---|---|
 | **State** | Signed-in user, admin flag, the user's Groups, and the current Group's members, wishes, and claims. |
-| **Persistence** | `localStorage` remembers the last Group you viewed; `sessionStorage` holds an invite code across sign-in. Neither is trusted for access. |
+| **Persistence** | Firestore keeps an offline copy of the data in the browser (shared across tabs), so repeat visits open instantly. `localStorage` remembers the last Group you viewed; `sessionStorage` holds an invite code across sign-in. None of these are trusted for access. |
 | **Screens** | Setup-card modes — *loading*, *config*, *sign in*, *join*, *no Group* — and the main app. |
 | **Auth** | Google sign-in popup. On sign-in, checks `admins/{uid}` and starts the Groups listener. |
 | **Groups** | Live listener on the Groups you belong to, and per-Group listeners for members, wishes, and claims. |
 | **Invites & joining** | Looks up an invite code, shows the join screen, and joins in one batch (member doc + Group membership). Also *Leave this Group*. |
 | **Admin** | Create Groups, copy or replace invite codes, remove members, delete Groups. |
-| **Profile** | The name menu and the Profile picture dialog. Uploads are centre-cropped to a 160 px JPEG (a few KB) and saved on your member doc in every Group you're in. |
+| **Profile** | The name menu and the Profile dialog. Name and picture changes are saved on your member doc in every Group you're in; uploads are centre-cropped to a 160 px JPEG of a few KB. |
 | **Rendering** | Card grid, family sidebar, counts, and the Group menu. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
 | **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
@@ -131,7 +133,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Who | Can |
 |---|---|
 | **Anyone signed in** | Look up an invite code they already have. Join that code's Group under their own user id. |
-| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Change their own profile picture (only to a Google photo or a small JPEG). Leave. |
+| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Change their own display name and profile picture (only to a Google photo or a small JPEG). Leave. |
 | **Wish owners** | Never read claims on their own wishes — the surprise is enforced by the server, not hidden in the page. |
 | **Admins** | Create and delete Groups, create and replace invite codes, remove members, delete any wish. |
 
@@ -141,7 +143,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 |---|---|
 | **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
 | **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
-| **Profile** | Upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
+| **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, and notes. When a wish has a link, its name is the link. Filter chips above the grid. |
 | **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), priority, and notes. |
@@ -170,10 +172,9 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Area | Notes |
 |---|---|
 | **Invite codes** | Codes don't expire. Anyone holding a code can join until you replace it with *New code*. |
-| **Display names** | Picked when joining and fixed after that. To change one, remove the person and re-invite them. |
 | **Admins** | Added by hand in the Firebase console (Setup step 5). There is no in-app admin management. |
 | **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead. |
-| **Phones** | The sidebar is hidden below 680 px wide, so the person filter and *Leave this Group* are desktop-only. |
+| **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
 | **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |

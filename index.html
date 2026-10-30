@@ -645,8 +645,29 @@
       header { padding: 1rem; flex-wrap: wrap; gap: 0.75rem; }
       .header-actions { flex-wrap: wrap; }
       .menu-list { right: auto; left: 0; }
-      .main-layout { grid-template-columns: 1fr; }
-      .sidebar { display: none; }
+      .main-layout { grid-template-columns: 1fr; min-height: 0; }
+      /* The sidebar becomes one row of chips that scrolls sideways. */
+      .sidebar {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding: 0.75rem 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: none;
+      }
+      .sidebar::-webkit-scrollbar { display: none; }
+      .sidebar-section-label, .sidebar-divider { display: none; }
+      #family-nav { display: contents; }
+      .sidebar-item {
+        flex-shrink: 0;
+        margin: 0;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        white-space: nowrap;
+        font-size: 0.82rem;
+      }
       .content { padding: 1rem; }
       .content-header { flex-wrap: wrap; gap: 0.75rem; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
@@ -866,7 +887,7 @@
       <span id="profile-avatar"></span>
       <div>
         <strong id="profile-name"></strong>
-        <p>Your picture shows next to your name in every Group you're in.</p>
+        <p>Your picture and name show the same in every Group you're in.</p>
       </div>
     </div>
     <div class="profile-actions">
@@ -874,6 +895,13 @@
       <button class="btn btn-sm" id="profile-google-btn" onclick="saveProfilePhoto('google')">Use Google photo</button>
       <button class="btn btn-sm btn-ghost" onclick="saveProfilePhoto(null)">Remove picture</button>
       <input type="file" id="profile-file" accept="image/*" style="display:none;" onchange="onProfileFile(this)" />
+    </div>
+    <div class="form-group" style="margin-top:1.5rem;">
+      <label>Name shown to family</label>
+      <div class="inline-form" style="margin-bottom:0;">
+        <input type="text" id="profile-name-input" maxlength="40" placeholder="e.g. Grandma, Dad, Sofia..." />
+        <button class="btn btn-primary" onclick="saveProfileName()">Save</button>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('profile-modal')">Done</button>
@@ -906,7 +934,8 @@
     getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import {
-    getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+    collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
     query, where, onSnapshot, writeBatch, serverTimestamp, arrayUnion, arrayRemove
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -1924,6 +1953,7 @@
 
   function openProfile() {
     renderProfile();
+    document.getElementById('profile-name-input').value = document.getElementById('header-user').textContent;
     document.getElementById('profile-modal').style.display = 'flex';
   }
 
@@ -1969,6 +1999,21 @@
   }
 
   // 'google' means your Google account photo; null removes the picture.
+  async function saveProfileName() {
+    const name = document.getElementById('profile-name-input').value.trim().slice(0, 40);
+    if (!name) { showToast('Please enter your name'); return; }
+    if (!groups.length) { showToast('Join a Group first'); return; }
+    try {
+      const batch = writeBatch(fb.db);
+      groups.forEach(g => batch.update(memberRef(g.id, user.uid), { name }));
+      await batch.commit();
+      showToast('Name updated');
+    } catch (e) {
+      console.error('Profile name save failed:', e);
+      showToast("Couldn't save your name. Try again.");
+    }
+  }
+
   async function saveProfilePhoto(choice) {
     const photo = choice === 'google' ? safePhoto(user.photoURL) : choice;
     if (!groups.length) { showToast('Join a Group first'); return; }
@@ -2025,7 +2070,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleMenu, closeMenus, openProfile, onProfileFile, saveProfilePhoto
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
   // ── Boot ──
@@ -2039,7 +2084,12 @@
     showScreen('config');
   } else {
     const app = initializeApp(firebaseConfig);
-    fb = { auth: getAuth(app), db: getFirestore(app) };
+    // Keeps a copy of the data in the browser (shared across tabs), so repeat visits open
+    // instantly and only changes count against Firestore's free daily reads.
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+    fb = { auth: getAuth(app), db };
     onAuthStateChanged(fb.auth, u => { u ? handleSignedIn(u) : handleSignedOut(); });
   }
 </script>
