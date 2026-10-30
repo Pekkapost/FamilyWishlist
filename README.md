@@ -8,7 +8,9 @@
 FamilyWishlist/
 ├── index.html          # the whole app — markup, styles, and script in one file
 ├── config.js           # Firebase web app config (public identifiers, not secrets)
-└── firestore.rules     # Firestore security rules — who can read and write what
+├── firestore.rules     # Firestore security rules — who can read and write what
+└── worker/
+    └── lookup.js       # Cloudflare Worker that reads a pasted link's name and price
 ```
 
 ## Tech Stack
@@ -17,7 +19,7 @@ FamilyWishlist/
 |---|---|---|
 | [Firebase Authentication](https://firebase.google.com/docs/auth) | JS SDK 10.12.2 | Google sign-in |
 | [Cloud Firestore](https://firebase.google.com/docs/firestore) | JS SDK 10.12.2 | Groups, members, wishes, and claims, with live updates |
-| [Microlink](https://microlink.io/) | API (free tier) | Reads a pasted link's page title and price to fill in a wish |
+| [Cloudflare Workers](https://developers.cloudflare.com/workers/) | Free plan | Reads a pasted link's page title and price to fill in a wish |
 | [Google Fonts](https://fonts.google.com/) | — | Lora (headings) + DM Sans (body) |
 | HTML / CSS / JavaScript | — | No framework, no build step |
 
@@ -77,7 +79,19 @@ Google sign-in only works on domains Firebase trusts. `localhost` is allowed by 
 
 Admins can only be added this way — the app itself can never write to `admins`.
 
-### **6. Create a Group and invite family**
+### **6. Link autofill Worker (optional)**
+
+Pasting a link fills in the name and price through a [Cloudflare Worker](worker/lookup.js). Without it the app still guesses a name from the link.
+
+1. Create a free [Cloudflare](https://dash.cloudflare.com/sign-up) account. No domain is needed.
+2. **Workers & Pages → Create application → Start with Hello World**. Name it `familywishlist-lookup` and deploy.
+3. **Edit code**, replace everything with [`worker/lookup.js`](worker/lookup.js), and **Deploy**.
+4. If your site isn't `https://pekkapost.github.io`, add its origin to `ALLOWED_ORIGINS` at the top of the Worker.
+5. Set `LOOKUP_ENDPOINT` in [`index.html`](index.html) to the Worker's address, `https://familywishlist-lookup.<your-subdomain>.workers.dev/`.
+
+The free plan allows 100,000 requests a day. The account's `workers.dev` subdomain appears in the public page, so pick one under **Workers & Pages → Account details → Subdomain** that you're happy to show.
+
+### **7. Create a Group and invite family**
 
 Create a Group from **⚙ Groups**. Each Group gets an 8-character invite code; share either the code or the **🔗 Copy link** link (`…/?invite=CODE`). Family members open the link — or enter the code — sign in with Google, pick the name shown to everyone, and they're in.
 
@@ -97,7 +111,7 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 | **Rendering** | Card grid, family sidebar, counts, and the Group picker. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
 | **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
-| **Link autofill** | When a link is pasted, guesses a name from the URL, then asks Microlink for the page title and price. Only fills fields that are empty or were filled by an earlier lookup. |
+| **Link autofill** | When a link is pasted, guesses a name from the URL, then asks the Worker for the page title and price. Only fills fields that are empty or were filled by an earlier lookup. |
 | **Boot** | Saves `?invite=` from the URL, then starts Firebase — or shows the config screen if [`config.js`](config.js) still has placeholders. |
 
 ### Data model
@@ -161,7 +175,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
 | **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |
-| **Link autofill** | Best effort. Microlink's free tier allows only a few lookups per internet connection per day, and many big stores (Target, Etsy, REI, …) block it; when that happens the name is guessed from the URL and the price is left blank. Pasted links are sent to microlink.io. |
+| **Link autofill** | Best effort. Works on Amazon, LEGO, and most Shopify-style shops; Walmart, Etsy, Best Buy, and REI block it, and then the name is guessed from the URL and the price is left blank. Prices are dollars only. Results are cached for 6 hours, so a price can lag a recent change. |
 
 ## Authors
 

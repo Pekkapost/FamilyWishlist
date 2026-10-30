@@ -1550,12 +1550,11 @@
   }
 
   // ── Link autofill ── best effort. A name is read from the URL itself straight away, then
-  // Microlink's free page preview is asked for the real title and, when the store publishes
-  // one in its meta tags, the price. Many big stores block lookups and the free tier allows
-  // only a handful per connection per day, so every field stays editable and nothing depends on it.
-  const LOOKUP_ENDPOINT = 'https://api.microlink.io/';
-  const LOOKUP_TIMEOUT_MS = 10000;
-  const JUNK_TITLE = /access denied|robot check|captcha|attention required|just a moment|not found|page unavailable|sign in|log in|are you a (human|robot)/i;
+  // our Cloudflare Worker (worker/lookup.js) fetches the page for the real title and price.
+  // Some stores block it, so every field stays editable and nothing depends on it.
+  const LOOKUP_ENDPOINT = 'https://familywishlist-lookup.pekkapost.workers.dev/';
+  const LOOKUP_TIMEOUT_MS = 12000;
+  const JUNK_TITLE = /access denied|robot check|robot or human|captcha|attention required|just a moment|not found|page unavailable|sign in|log in|are you a (human|robot)/i;
   let lookupSeq = 0;
   let lastLookupUrl = '';
 
@@ -1602,9 +1601,6 @@
     if (filled.length) setLinkStatus('ok', 'Filled in the ' + filled.join(' and ') + ' from ' + host + '.'
       + (priceEmpty ? ' Add the price if you know it.' : ''));
     else if (title || (preview && preview.price)) setLinkStatus('info', 'Found the item on ' + host + ', but kept what you had already typed.');
-    else if (preview && preview.error === 'ERATE') setLinkStatus('info', guessed
-      ? 'Link lookups are used up for today, so the name was guessed from the link. Check it before saving.'
-      : 'Link lookups are used up for today. Fill in the details below.');
     else setLinkStatus('info', guessed
       ? "Couldn't read " + host + ', so the name was guessed from the link. Check it before saving.'
       : "Couldn't read " + host + '. Fill in the details below.');
@@ -1626,13 +1622,7 @@
   }
 
   async function fetchPreview(url) {
-    const params = new URLSearchParams({
-      url,
-      'data.price.selector': 'meta[property="product:price:amount"],meta[property="og:price:amount"],meta[itemprop="price"]',
-      'data.price.attr': 'content',
-      'data.currency.selector': 'meta[property="product:price:currency"],meta[property="og:price:currency"],meta[itemprop="priceCurrency"]',
-      'data.currency.attr': 'content'
-    });
+    const params = new URLSearchParams({ url });
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), LOOKUP_TIMEOUT_MS);
     try {
@@ -1672,7 +1662,7 @@
   function cleanTitle(title, host) {
     const t = (title || '').replace(/\s+/g, ' ').trim();
     if (!t || JUNK_TITLE.test(t) || t.toLowerCase() === host.toLowerCase()) return '';
-    if (!/\s/.test(t) && /\d/.test(t)) return '';
+    if (!/\s/.test(t)) return '';  // one-word titles are generic pages like "Products" or codes like "6505727.p"
     const labels = host.split('.');
     const site = (labels.length > 2 && labels[labels.length - 2].length <= 3
       ? labels[labels.length - 3]                // amazon.co.uk → amazon
