@@ -116,7 +116,10 @@ service cloud.firestore {
             && d.wishOwnerUid != request.auth.uid;
         }
 
-        allow get: if isMember(gid) && (resource == null || resource.data.wishOwnerUid != request.auth.uid);
+        // Checked against the wish, not the claim, so the owner is refused whether or not a
+        // claim exists — otherwise the difference would give the surprise away.
+        allow get: if isMember(gid)
+          && get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data.ownerUid != request.auth.uid;
         allow create: if isMember(gid) && validClaim();
         // A claim left behind by someone no longer in the Group can be taken over.
         allow update: if isMember(gid) && validClaim() && !(resource.data.uid in groupData(gid).memberUids);
