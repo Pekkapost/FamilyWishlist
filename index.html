@@ -314,7 +314,7 @@
     .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
 
     /* ── Content area ── */
-    .content { padding: 2rem; max-width: 900px; }
+    .content { padding: 2rem; min-width: 0; }
     .content-header {
       display: flex;
       align-items: flex-start;
@@ -392,6 +392,14 @@
       color: var(--ink);
       line-height: 1.3;
       padding-right: 2rem;
+      /* Always two lines tall, so every card lines up whatever the name's length;
+         longer names end in "…" (the full name shows on hover). */
+      min-height: calc(1.05rem * 1.3 * 2);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
     }
     .wish-card-meta {
       display: flex;
@@ -1571,7 +1579,7 @@
     return `
       <div class="wish-card ${claim ? 'claimed' : ''}" id="card-${w.id}">
         <div>
-          <div class="wish-card-title">${link
+          <div class="wish-card-title" title="${esc(w.name)}">${link
             ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
             : esc(w.name)}</div>
           <div class="wish-card-meta" style="margin-top:0.4rem;">
