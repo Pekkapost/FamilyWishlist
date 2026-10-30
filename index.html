@@ -56,14 +56,66 @@
     .logo span { color: var(--accent-mid); }
     .header-actions { display: flex; align-items: center; gap: 0.75rem; }
     .user-badge {
+      font-family: 'DM Sans', sans-serif;
       font-size: 0.8rem;
       font-weight: 500;
       color: var(--ink-soft);
       background: var(--tag-bg);
       border: 1px solid var(--border);
-      padding: 0.35rem 0.85rem;
+      padding: 0.25rem 0.75rem 0.25rem 0.3rem;
       border-radius: 99px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
     }
+    .user-badge:hover { border-color: var(--border-strong); color: var(--ink); }
+    .user-badge .caret { font-size: 0.65rem; color: var(--ink-muted); }
+    .user-menu { position: relative; }
+    .user-menu-list {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.4rem);
+      min-width: 160px;
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(28, 25, 23, 0.12);
+      padding: 0.3rem;
+      z-index: 150;
+    }
+    .user-menu-list.open { display: block; }
+    .user-menu-list button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      color: var(--ink);
+      background: none;
+      border: none;
+      border-radius: 7px;
+      padding: 0.5rem 0.7rem;
+      cursor: pointer;
+    }
+    .user-menu-list button:hover { background: var(--tag-bg); }
+
+    /* ── Avatars ── initials underneath, the photo (if any) on top */
+    .avatar {
+      position: relative;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .profile-preview { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .profile-preview p { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .btn {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.85rem;
@@ -253,17 +305,6 @@
     .sidebar-item.active .count {
       background: #FED7AA;
       color: var(--accent);
-    }
-    .sidebar-avatar {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.65rem;
-      font-weight: 600;
-      flex-shrink: 0;
     }
     .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
 
@@ -592,6 +633,7 @@
     @media (max-width: 680px) {
       header { padding: 1rem; flex-wrap: wrap; gap: 0.75rem; }
       .header-actions { flex-wrap: wrap; }
+      .user-menu-list { right: auto; left: 0; }
       .main-layout { grid-template-columns: 1fr; }
       .sidebar { display: none; }
       .content { padding: 1rem; }
@@ -668,10 +710,18 @@
     <div class="logo">🎁 Family <span>Wishlist</span></div>
     <div class="header-actions">
       <select class="group-select" id="group-select" onchange="onGroupSelect(this)" title="Switch Group"></select>
-      <span class="user-badge" id="header-user"></span>
       <button class="btn btn-sm" id="admin-btn" style="display:none;" onclick="openAdmin()">⚙ Groups</button>
-      <button class="btn btn-sm" onclick="showAddModal()">+ Add wish</button>
-      <button class="btn btn-sm btn-ghost" onclick="signOutUser()" title="Sign out">⎋</button>
+      <div class="user-menu">
+        <button class="user-badge" id="user-menu-btn" onclick="toggleUserMenu(event)" aria-haspopup="menu" aria-expanded="false">
+          <span id="header-avatar"></span>
+          <span id="header-user"></span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="user-menu-list" id="user-menu-list" role="menu">
+          <button role="menuitem" onclick="closeUserMenu(); openProfile()">👤 Profile</button>
+          <button role="menuitem" onclick="closeUserMenu(); signOutUser()">⎋ Sign out</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -788,6 +838,29 @@
     <div id="admin-groups"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('admin-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profile-modal" style="display:none;" onclick="closeModalIfOutside(event, 'profile-modal')">
+  <div class="modal">
+    <h3>Profile</h3>
+    <div class="profile-preview">
+      <span id="profile-avatar"></span>
+      <div>
+        <strong id="profile-name"></strong>
+        <p>Your picture shows next to your name in every Group you're in.</p>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <button class="btn btn-sm btn-primary" onclick="document.getElementById('profile-file').click()">Upload picture</button>
+      <button class="btn btn-sm" id="profile-google-btn" onclick="saveProfilePhoto('google')">Use Google photo</button>
+      <button class="btn btn-sm btn-ghost" onclick="saveProfilePhoto(null)">Remove picture</button>
+      <input type="file" id="profile-file" accept="image/*" style="display:none;" onchange="onProfileFile(this)" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('profile-modal')">Done</button>
     </div>
   </div>
 </div>
@@ -1126,7 +1199,7 @@
       const batch = writeBatch(fb.db);
       batch.set(memberRef(groupId, user.uid), {
         name: name.slice(0, 40),
-        photoURL: user.photoURL || null,
+        photoURL: myPhoto(),
         inviteCode: code,
         joinedAt: serverTimestamp()
       });
@@ -1188,7 +1261,7 @@
       batch.set(inviteRef(code), { groupId: ref.id, groupName: name, createdAt: serverTimestamp() });
       batch.set(memberRef(ref.id, user.uid), {
         name: (user.displayName || 'Admin').slice(0, 40),
-        photoURL: user.photoURL || null,
+        photoURL: myPhoto(),
         inviteCode: code,
         joinedAt: serverTimestamp()
       });
@@ -1380,9 +1453,10 @@
     renderGrid();
     renderSidebar();
     renderCounts();
-    document.getElementById('header-user').textContent = memberName(user.uid) === 'Former member'
-      ? (user.displayName || user.email || '')
-      : memberName(user.uid);
+    const myName = members[user.uid] ? members[user.uid].name : (user.displayName || user.email || '');
+    document.getElementById('header-user').textContent = myName;
+    document.getElementById('header-avatar').innerHTML = avatarHTML(myName, myPhoto(), 24);
+    if (isOpen('profile-modal')) renderProfile();
   }
 
   function renderGroupSelect() {
@@ -1412,6 +1486,17 @@
     return colors[h];
   }
   function initials(name) { return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2); }
+
+  // Initials in the person's colour, with their picture (if any) laid over the top. If the
+  // picture fails to load it hides itself and the initials show through.
+  function avatarHTML(name, photo, size) {
+    const col = avatarColor(name);
+    const src = safePhoto(photo);
+    return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.32)}px;background:${col}20;color:${col};">`
+      + esc(initials(name))
+      + (src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '')
+      + '</span>';
+  }
 
   function safeLink(url) {
     return /^https?:\/\//i.test(url || '') ? url : '';
@@ -1465,10 +1550,9 @@
       .sort((a, b) => a[1].name.localeCompare(b[1].name))
       .map(function([uid, m]) {
         const count = wishes.filter(w => w.ownerUid === uid).length;
-        const col = avatarColor(m.name);
         return `<div class="sidebar-item ${currentView === 'person' && filterPersonUid === uid ? 'active' : ''}"
                      onclick="setPersonView('${uid}')">
-          <div class="sidebar-avatar" style="background:${col}20;color:${col};">${esc(initials(m.name))}</div>
+          ${avatarHTML(m.name, m.photoURL, 22)}
           ${esc(m.name)} <span class="count">${count}</span>
         </div>`;
       }).join('');
@@ -1781,6 +1865,102 @@
     }
   }
 
+  // ── Profile ── the picture lives on each of your member docs, one per Group, so
+  // everyone in a Group can see it. Uploads are shrunk to a small JPEG and stored inline.
+  const PHOTO_SIZE = 160;
+  const PHOTO_MAX_CHARS = 100000;   // matches validPhoto() in firestore.rules
+  const GOOGLE_PHOTO = /^https:\/\/[a-z0-9.-]+\.googleusercontent\.com\//;
+
+  function safePhoto(url) {
+    if (typeof url !== 'string') return null;
+    if (GOOGLE_PHOTO.test(url) && url.length <= 2000) return url;
+    if (/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(url) && url.length <= PHOTO_MAX_CHARS) return url;
+    return null;
+  }
+
+  // Your current picture: what your member doc says if you're in a Group, else your Google photo.
+  function myPhoto() {
+    if (members[user.uid]) return safePhoto(members[user.uid].photoURL);
+    return safePhoto(user.photoURL);
+  }
+
+  function toggleUserMenu(e) {
+    e.stopPropagation();
+    const list = document.getElementById('user-menu-list');
+    const open = !list.classList.contains('open');
+    list.classList.toggle('open', open);
+    document.getElementById('user-menu-btn').setAttribute('aria-expanded', String(open));
+  }
+
+  function closeUserMenu() {
+    document.getElementById('user-menu-list').classList.remove('open');
+    document.getElementById('user-menu-btn').setAttribute('aria-expanded', 'false');
+  }
+
+  document.addEventListener('click', e => { if (!e.target.closest('.user-menu')) closeUserMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUserMenu(); });
+
+  function openProfile() {
+    renderProfile();
+    document.getElementById('profile-modal').style.display = 'flex';
+  }
+
+  function renderProfile() {
+    const name = document.getElementById('header-user').textContent;
+    document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-avatar').innerHTML = avatarHTML(name, myPhoto(), 72);
+    document.getElementById('profile-google-btn').style.display = safePhoto(user.photoURL) ? '' : 'none';
+  }
+
+  async function onProfileFile(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file'); return; }
+    let dataUrl;
+    try {
+      dataUrl = await shrinkImage(file);
+    } catch (e) {
+      console.error('Image read failed:', e);
+      showToast("Couldn't read that image. Try a JPG or PNG.");
+      return;
+    }
+    await saveProfilePhoto(dataUrl);
+  }
+
+  // Centre-crops to a square and scales to PHOTO_SIZE, as a JPEG small enough for Firestore.
+  async function shrinkImage(file) {
+    const bitmap = await createImageBitmap(file);
+    const side = Math.min(bitmap.width, bitmap.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = PHOTO_SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    bitmap.close();
+    for (const quality of [0.85, 0.7, 0.5]) {
+      const url = canvas.toDataURL('image/jpeg', quality);
+      if (url.length <= PHOTO_MAX_CHARS) return url;
+    }
+    throw new Error('Image too large after shrinking');
+  }
+
+  // 'google' means your Google account photo; null removes the picture.
+  async function saveProfilePhoto(choice) {
+    const photo = choice === 'google' ? safePhoto(user.photoURL) : choice;
+    if (!groups.length) { showToast('Join a Group first'); return; }
+    try {
+      const batch = writeBatch(fb.db);
+      groups.forEach(g => batch.update(memberRef(g.id, user.uid), { photoURL: photo }));
+      await batch.commit();
+      showToast(photo ? 'Profile picture updated' : 'Profile picture removed');
+    } catch (e) {
+      console.error('Profile photo save failed:', e);
+      showToast("Couldn't save your picture. Try again.");
+    }
+  }
+
   // ── Modals ──
   function closeModal(id) { document.getElementById(id).style.display = 'none'; }
   function closeModalIfOutside(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
@@ -1823,7 +2003,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside
+    closeModal, closeModalIfOutside, toggleUserMenu, closeUserMenu, openProfile, onProfileFile, saveProfilePhoto
   });
 
   // ── Boot ──

@@ -29,6 +29,13 @@ service cloud.firestore {
     function isText(value, maxLength) {
       return value is string && value.size() <= maxLength;
     }
+    // A profile picture: none, a Google account photo, or a small uploaded image
+    // stored inline (the app shrinks uploads to about 10 KB).
+    function validPhoto(value) {
+      return value == null
+        || (isText(value, 2000) && value.matches('https://[a-z0-9.-]+[.]googleusercontent[.]com/.*'))
+        || (isText(value, 100000) && value.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'));
+    }
 
     // ── Admins ── added by hand in the console; the app can never write them.
     match /admins/{uid} {
@@ -79,7 +86,12 @@ service cloud.firestore {
         allow create: if signedIn() && request.auth.uid == uid
           && request.resource.data.keys().hasOnly(['name', 'photoURL', 'inviteCode', 'joinedAt'])
           && isText(request.resource.data.name, 40) && request.resource.data.name.size() > 0
+          && validPhoto(request.resource.data.get('photoURL', null))
           && (isAdmin() || validInvite(gid, request.resource.data.inviteCode));
+        // Members can change their own profile picture, and nothing else.
+        allow update: if signedIn() && request.auth.uid == uid && isMember(gid)
+          && onlyChanged(['photoURL'])
+          && validPhoto(request.resource.data.get('photoURL', null));
         allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
       }
 

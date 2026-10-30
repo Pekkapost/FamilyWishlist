@@ -108,6 +108,7 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 | **Groups** | Live listener on the Groups you belong to, and per-Group listeners for members, wishes, and claims. |
 | **Invites & joining** | Looks up an invite code, shows the join screen, and joins in one batch (member doc + Group membership). Also *Leave this Group*. |
 | **Admin** | Create Groups, copy or replace invite codes, remove members, delete Groups. |
+| **Profile** | The name menu and the Profile picture dialog. Uploads are centre-cropped to a 160 px JPEG (a few KB) and saved on your member doc in every Group you're in. |
 | **Rendering** | Card grid, family sidebar, counts, and the Group picker. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
 | **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
@@ -120,7 +121,7 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 admins/{uid}                      # exists = admin; added by hand in the console
 invites/{code}                    # { groupId, groupName, createdAt }
 groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
-  ├── members/{uid}               # { name, photoURL, inviteCode, joinedAt }
+  ├── members/{uid}               # { name, photoURL, inviteCode, joinedAt } — photoURL: Google photo, inline JPEG, or null
   ├── wishes/{wishId}             # { name, price, priority, link, notes, ownerUid, createdAt }
   └── claims/{wishId}             # { uid, wishOwnerUid, claimedAt }
 ```
@@ -130,7 +131,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Who | Can |
 |---|---|
 | **Anyone signed in** | Look up an invite code they already have. Join that code's Group under their own user id. |
-| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Leave. |
+| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Change their own profile picture (only to a Google photo or a small JPEG). Leave. |
 | **Wish owners** | Never read claims on their own wishes — the surprise is enforced by the server, not hidden in the page. |
 | **Admins** | Create and delete Groups, create and replace invite codes, remove members, delete any wish. |
 
@@ -139,7 +140,8 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Surface | Summary |
 |---|---|
 | **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
-| **Header** | Group picker (with *+ Join with code…*) · your name · **⚙ Groups** for admins · add wish · sign out. |
+| **Header** | Group picker (with *+ Join with code…*) · **⚙ Groups** for admins · your picture and name, which open a menu with **Profile** and **Sign out**. |
+| **Profile** | Upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, notes, and an optional link. Filter chips above the grid. |
 | **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), priority, and notes. |
