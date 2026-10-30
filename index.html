@@ -145,6 +145,17 @@
       border-color: var(--accent-mid);
     }
     .form-group textarea { resize: vertical; min-height: 80px; }
+    .price-input { position: relative; }
+    .price-input span {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      color: var(--ink-soft);
+      pointer-events: none;
+    }
+    .form-group .price-input input { padding-left: 1.7rem; }
     .link-status {
       display: none;
       align-items: center;
@@ -726,7 +737,10 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
       <div class="form-group">
         <label>Price (approx.)</label>
-        <input type="text" id="wish-price" maxlength="40" placeholder="$50" />
+        <div class="price-input">
+          <span>$</span>
+          <input type="number" id="wish-price" min="0" max="9999999" step="0.01" inputmode="decimal" placeholder="50" />
+        </div>
       </div>
       <div class="form-group">
         <label>Priority</label>
@@ -1430,7 +1444,7 @@
           <div class="wish-card-title">${esc(w.name)}</div>
           <div class="wish-card-meta" style="margin-top:0.4rem;">
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
-            ${w.price ? `<span class="price-tag">${esc(w.price)}</span>` : ''}
+            ${w.price ? `<span class="price-tag">${esc(displayPrice(w.price))}</span>` : ''}
             <span class="tag">${esc(memberName(w.ownerUid))}</span>
           </div>
         </div>
@@ -1526,7 +1540,8 @@
     editingId = id;
     document.getElementById('modal-title').textContent = 'Edit wish';
     document.getElementById('wish-name').value = w.name;
-    document.getElementById('wish-price').value = w.price || '';
+    const amount = priceAmount(w.price);
+    document.getElementById('wish-price').value = isNaN(amount) ? '' : String(amount);
     document.getElementById('wish-priority').value = w.priority;
     document.getElementById('wish-link').value = w.link || '';
     document.getElementById('wish-notes').value = w.notes || '';
@@ -1540,7 +1555,6 @@
   // only a handful per connection per day, so every field stays editable and nothing depends on it.
   const LOOKUP_ENDPOINT = 'https://api.microlink.io/';
   const LOOKUP_TIMEOUT_MS = 10000;
-  const CURRENCY_SYMBOLS = { USD: '$', CAD: 'CA$', AUD: 'A$', EUR: '€', GBP: '£', JPY: '¥' };
   const JUNK_TITLE = /access denied|robot check|captcha|attention required|just a moment|not found|page unavailable|sign in|log in|are you a (human|robot)/i;
   let lookupSeq = 0;
   let lastLookupUrl = '';
@@ -1626,7 +1640,7 @@
       const body = await res.json();
       if (body.status !== 'success') return { error: body.code || 'EFAIL' };
       const d = body.data || {};
-      return { title: fixMojibake(d.title || ''), price: formatPrice(d.price, d.currency) };
+      return { title: fixMojibake(d.title || ''), price: dollarAmount(d.price, d.currency) };
     } finally {
       clearTimeout(timer);
     }
@@ -1683,12 +1697,11 @@
     return parts.join(' - ').trim();
   }
 
-  function formatPrice(amount, currency) {
-    const n = parseFloat(String(amount || '').replace(/[^0-9.]/g, ''));
-    if (!isFinite(n) || n <= 0) return '';
-    const code = String(currency || 'USD').toUpperCase();
-    const num = n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
-    return CURRENCY_SYMBOLS[code] ? CURRENCY_SYMBOLS[code] + num : num + ' ' + code;
+  // Prices are dollars only, so a page priced in another currency fills in no price.
+  function dollarAmount(amount, currency) {
+    if (currency && String(currency).toUpperCase() !== 'USD') return '';
+    const n = priceAmount(amount);
+    return n > 0 ? String(n) : '';
   }
 
   // Some pages come back as UTF-8 read as Windows-1252 ("â€“" for "–"); turn it back if so.
@@ -1712,10 +1725,16 @@
     if (!name) { showToast('Please enter a name for your wish'); return; }
     const link = document.getElementById('wish-link').value.trim();
     if (link && !safeLink(link)) { showToast('Links must start with http:// or https://'); return; }
+    const priceInput = document.getElementById('wish-price');
+    const price = priceInput.value === '' ? NaN : Number(priceInput.value);
+    if (priceInput.validity.badInput || (priceInput.value !== '' && !(price >= 0 && price <= 9999999))) {
+      showToast('Price must be a number, like 49.99');
+      return;
+    }
 
     const fields = {
       name: name.slice(0, 200),
-      price: document.getElementById('wish-price').value.trim().slice(0, 40),
+      price: isNaN(price) ? '' : String(Math.round(price * 100) / 100),
       priority: document.getElementById('wish-priority').value,
       link: link.slice(0, 2000),
       notes: document.getElementById('wish-notes').value.trim().slice(0, 1000)
@@ -1783,6 +1802,16 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   function byName(a, b) { return (a.name || '').localeCompare(b.name || ''); }
+  // Prices are stored as plain numbers in a string ("49.99"); older wishes may hold text like "$50".
+  function priceAmount(value) {
+    const cleaned = String(value == null ? '' : value).replace(/[$,\s]/g, '');
+    return /^\d+(\.\d+)?$/.test(cleaned) ? Math.round(parseFloat(cleaned) * 100) / 100 : NaN;
+  }
+  function displayPrice(value) {
+    const n = priceAmount(value);
+    if (isNaN(n)) return String(value);
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+  }
   function millis(ts) { return ts && ts.toMillis ? ts.toMillis() : Date.now(); }
   function resetBtn(id, label) {
     const btn = document.getElementById(id);

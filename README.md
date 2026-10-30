@@ -128,7 +128,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Header** | Group picker (with *+ Join with code…*) · your name · **⚙ Groups** for admins · add wish · sign out. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, notes, and an optional link. Filter chips above the grid. |
-| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price, priority, and notes. |
+| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), priority, and notes. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
@@ -160,7 +160,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Phones** | The sidebar is hidden below 680 px wide, so the person filter and *Leave this Group* are desktop-only. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
-| **Price** | Free text, not a number — no sorting or totals. |
+| **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |
 | **Link autofill** | Best effort. Microlink's free tier allows only a few lookups per internet connection per day, and many big stores (Target, Etsy, REI, …) block it; when that happens the name is guessed from the URL and the price is left blank. Pasted links are sent to microlink.io. |
 
 ## Authors
