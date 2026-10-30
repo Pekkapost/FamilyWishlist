@@ -17,6 +17,7 @@ FamilyWishlist/
 |---|---|---|
 | [Firebase Authentication](https://firebase.google.com/docs/auth) | JS SDK 10.12.2 | Google sign-in |
 | [Cloud Firestore](https://firebase.google.com/docs/firestore) | JS SDK 10.12.2 | Groups, members, wishes, and claims, with live updates |
+| [Microlink](https://microlink.io/) | API (free tier) | Reads a pasted link's page title and price to fill in a wish |
 | [Google Fonts](https://fonts.google.com/) | — | Lora (headings) + DM Sans (body) |
 | HTML / CSS / JavaScript | — | No framework, no build step |
 
@@ -96,6 +97,7 @@ All app code is in [`index.html`](index.html); the script is split into labelled
 | **Rendering** | Card grid, family sidebar, counts, and the Group picker. |
 | **Navigation** | Sidebar views (everyone / mine / I'm gifting / one person) and the priority / unclaimed filter chips. |
 | **Wish CRUD** | Add, edit, delete, claim, unclaim. The live listeners redraw the page when writes land. |
+| **Link autofill** | When a link is pasted, guesses a name from the URL, then asks Microlink for the page title and price. Only fills fields that are empty or were filled by an earlier lookup. |
 | **Boot** | Saves `?invite=` from the URL, then starts Firebase — or shows the config screen if [`config.js`](config.js) still has placeholders. |
 
 ### Data model
@@ -126,7 +128,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Header** | Group picker (with *+ Join with code…*) · your name · **⚙ Groups** for admins · add wish · sign out. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, notes, and an optional link. Filter chips above the grid. |
-| **Add/Edit Modal** | Item name, approximate price, priority, link, and notes. |
+| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price, priority, and notes. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
@@ -159,6 +161,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
 | **Price** | Free text, not a number — no sorting or totals. |
+| **Link autofill** | Best effort. Microlink's free tier allows only a few lookups per internet connection per day, and many big stores (Target, Etsy, REI, …) block it; when that happens the name is guessed from the URL and the price is left blank. Pasted links are sent to microlink.io. |
 
 ## Authors
 
