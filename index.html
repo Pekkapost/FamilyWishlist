@@ -447,6 +447,7 @@
       flex-wrap: wrap;
       gap: 0.4rem;
       margin-top: auto;
+      min-height: 28px;  /* same height with or without buttons */
     }
     .wish-card-title a {
       color: inherit;
@@ -475,6 +476,7 @@
       z-index: 1;
     }
     .wish-card.gifting { opacity: 1; }
+    .claimed-line { min-height: 1.2rem; line-height: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .claim-btn { width: 7.5rem; white-space: nowrap; padding-left: 0; padding-right: 0; }
     .claimed-by {
       font-size: 0.75rem;
@@ -1642,11 +1644,12 @@
         : remaining
           ? `${remaining > 1 ? `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift">${qtyOptions(remaining, 1)}</select>` : ''}
              <button class="btn btn-sm claim-btn" onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`
-          : `<span class="claimed-by">Claimed by ${claimerText}</span>`;
-    // Shows who else is gifting when the buttons don't already say it.
-    const claimedLine = claimers.length && (mine || remaining) && (count > 1)
-      ? `<div class="claimed-by">Claimed by ${claimerText}${remaining ? ' · ' + remaining + ' left' : ''}</div>`
+          : '';
+    // Always on the card, blank until someone claims, so claiming doesn't change its height.
+    const claimedText = claimers.length
+      ? 'Claimed by ' + claimerText + (remaining ? ' · ' + remaining + ' left' : '')
       : '';
+    const claimedLine = `<div class="claimed-by claimed-line" title="${claimedText}">${claimedText}</div>`;
 
     const editBtn = isOwner
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
