@@ -464,7 +464,18 @@
       background: var(--warm-white);
       color: var(--ink);
     }
-    .gifting-label { font-size: 0.78rem; color: var(--green); font-weight: 500; }
+    /* Sits on the card's corner, partly outside it, on wishes you're gifting. */
+    .gift-ribbon {
+      position: absolute;
+      top: -0.85rem;
+      left: -0.7rem;
+      font-size: 1.7rem;
+      line-height: 1;
+      transform: rotate(-15deg);
+      z-index: 1;
+    }
+    .wish-card.gifting { opacity: 1; }
+    .claim-btn { width: 7.5rem; white-space: nowrap; padding-left: 0; padding-right: 0; }
     .claimed-by {
       font-size: 0.75rem;
       color: var(--green);
@@ -1626,12 +1637,11 @@
     const claimBtn = isOwner
       ? `<span class="own-item-badge">Your wish</span>`
       : mine
-        ? `<span class="gifting-label">🎁 Gifting</span>
-           ${count > 1 ? `<select class="qty-select" aria-label="How many you're gifting" onchange="claimWish('${w.id}', this.value)">${qtyOptions(mine + remaining, mine)}</select>` : ''}
-           <button class="btn btn-sm btn-ghost" onclick="unclaimWish('${w.id}')">Unclaim</button>`
+        ? `${count > 1 ? `<select class="qty-select" aria-label="How many you're gifting" onchange="claimWish('${w.id}', this.value)">${qtyOptions(mine + remaining, mine)}</select>` : ''}
+           <button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
         : remaining
           ? `${remaining > 1 ? `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift">${qtyOptions(remaining, 1)}</select>` : ''}
-             <button class="btn btn-sm" onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`
+             <button class="btn btn-sm claim-btn" onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`
           : `<span class="claimed-by">Claimed by ${claimerText}</span>`;
     // Shows who else is gifting when the buttons don't already say it.
     const claimedLine = claimers.length && (mine || remaining) && (count > 1)
@@ -1647,7 +1657,8 @@
     const link = safeLink(w.link);
 
     return `
-      <div class="wish-card ${!isOwner && !remaining ? 'claimed' : ''}" id="card-${w.id}">
+      <div class="wish-card ${!isOwner && !remaining ? 'claimed' : ''} ${mine ? 'gifting' : ''}" id="card-${w.id}">
+        ${mine ? `<span class="gift-ribbon" title="You're gifting this" aria-label="You're gifting this">🎀</span>` : ''}
         <span class="wish-owner" title="${esc(memberName(w.ownerUid))}">${avatarHTML(memberName(w.ownerUid), (members[w.ownerUid] || {}).photoURL, 28)}</span>
         <div>
           <div class="wish-card-title" title="${esc(w.name)}">${link
