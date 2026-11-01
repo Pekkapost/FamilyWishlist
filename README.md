@@ -142,11 +142,12 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Surface | Summary |
 |---|---|
 | **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
-| **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
+| **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile**, **Settings**, and **Sign out**. |
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
-| **Wish Grid** | Wide card per wish, with its priority color on the left edge: a thumbnail (click for a larger view), a name of up to two lines, the owner's picture in the top right (name on hover or tap), price, a *High* label on high-priority wishes, notes, and the count at the bottom left when more than one is wanted. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
+| **Wish Grid** | Wide card per wish, with its priority color on the left edge: a thumbnail (click for a larger view), a name of up to two lines, the owner's picture in the top right (name on hover or tap), price, notes, and the count at the bottom left when more than one is wanted. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
 | **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then an optional image address, item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. When editing, *Refresh image and price* checks the store again and asks before changing anything. Closes with × or Cancel, not by clicking outside it. |
+| **Settings** | Light, dark, or match-this-device appearance, and a color blind mode that uses easier-to-tell priority colors and writes the priority on each card. Saved per browser, not per account. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
