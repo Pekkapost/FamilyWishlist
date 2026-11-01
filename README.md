@@ -124,8 +124,8 @@ admins/{uid}                      # exists = admin; added by hand in the console
 invites/{code}                    # { groupId, groupName, createdAt }
 groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
   ├── members/{uid}               # { name, photoURL, inviteCode, joinedAt } — photoURL: Google photo, inline JPEG, or null
-  ├── wishes/{wishId}             # { name, price, priority, link, notes, ownerUid, createdAt }
-  └── claims/{wishId}             # { uid, wishOwnerUid, claimedAt }
+  └── wishes/{wishId}             # { name, price, count, priority, link, notes, ownerUid, createdAt }
+        └── claims/{uid}          # { qty, claimedAt } — one per giver
 ```
 
 ### Security rules
@@ -133,7 +133,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | Who | Can |
 |---|---|
 | **Anyone signed in** | Look up an invite code they already have. Join that code's Group under their own user id. |
-| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim and unclaim other people's wishes. Change their own display name and profile picture (only to a Google photo or a small JPEG). Leave. |
+| **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim other people's wishes, choosing how many, and unclaim them. Change their own display name and profile picture (only to a Google photo or a small JPEG). Leave. |
 | **Wish owners** | Never read claims on their own wishes — the surprise is enforced by the server, not hidden in the page. |
 | **Admins** | Create and delete Groups, create and replace invite codes, remove members, delete any wish. |
 
@@ -146,7 +146,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
 | **Wish Grid** | Card per wish with priority dot, price, owner, and notes. When a wish has a link, its name is the link. Filter chips above the grid. |
-| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), priority, and notes. |
+| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. Closes with × or Cancel, not by clicking outside it. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
@@ -155,7 +155,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 |---|---|
 | **Filter chips** | All · 🔴 High · 🟡 Medium · 🔵 Low · Not yet claimed. Combine with any sidebar view. |
 | **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
-| **Other people's wishes** | *🎁 I'll gift this* to claim; *Unclaim* if you claimed it; otherwise *Claimed by &lt;name&gt;*, dimmed. |
+| **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish (*Claimed by Nicole (2) · 1 left*). Dimmed once its whole count is claimed. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
 
 ### Manage Groups
@@ -177,6 +177,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
+| **Count** | Rules cap each giver at the wish's count but can't add up givers. The app rechecks before saving, so only near-simultaneous claims can go over. If an owner lowers a count, existing claims stay. |
 | **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |
 | **Link autofill** | Best effort. Works on Amazon, LEGO, and most Shopify-style shops; Walmart, Etsy, Best Buy, and REI block it, and then the name is guessed from the URL and the price is left blank. Prices are dollars only. Results are cached for 6 hours, so a price can lag a recent change. |
 

@@ -99,7 +99,8 @@ service cloud.firestore {
       // ── Wishes ──
       match /wishes/{wid} {
         function validWish(d) {
-          return d.keys().hasOnly(['name', 'price', 'priority', 'link', 'notes', 'ownerUid', 'createdAt'])
+          return d.keys().hasOnly(['name', 'price', 'count', 'priority', 'link', 'notes', 'ownerUid', 'createdAt'])
+            && (!('count' in d) || (d.count is int && d.count >= 1 && d.count <= 99))
             && isText(d.name, 200) && d.name.size() > 0
             && d.price is string && (d.price == '' || d.price.matches('[0-9]{1,7}([.][0-9]{1,2})?'))
             && d.priority in ['high', 'medium', 'low']
@@ -116,10 +117,32 @@ service cloud.firestore {
           && validWish(request.resource.data)
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'createdAt']);
         allow delete: if isAdmin() || (isMember(gid) && resource.data.ownerUid == request.auth.uid);
+
+        // ── Claims ── one doc per giver, id = their user id. The wish's owner is always
+        // refused, so whether anyone is gifting it stays a surprise. The app checks what's
+        // left before claiming; rules can't add up other givers, so only each giver's own
+        // quantity is capped here.
+        match /claims/{giver} {
+          function wishData() {
+            return get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data;
+          }
+
+          allow read: if isMember(gid) && wishData().ownerUid != request.auth.uid;
+          allow create, update: if isMember(gid)
+            && giver == request.auth.uid
+            && wishData().ownerUid != request.auth.uid
+            && request.resource.data.keys().hasOnly(['qty', 'claimedAt'])
+            && request.resource.data.qty is int
+            && request.resource.data.qty >= 1
+            && request.resource.data.qty <= wishData().get('count', 1);
+          allow delete: if isAdmin()
+            || (signedIn() && giver == request.auth.uid)
+            || (isMember(gid) && wishData().ownerUid == request.auth.uid);
+        }
       }
 
-      // ── Claims ── one doc per claimed wish, id = the wish id. Kept apart from the
-      // wish so its owner can never read who (or whether anyone) is gifting it.
+      // ── Old claims ── the previous version's format, kept only while that version is
+      // still being served. Remove once the new version is live.
       match /claims/{wid} {
         function validClaim() {
           let d = request.resource.data;

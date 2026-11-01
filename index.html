@@ -448,6 +448,16 @@
       text-underline-offset: 3px;
     }
     .wish-card-title a:hover { color: var(--accent); text-decoration-color: currentColor; }
+    .qty-select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      padding: 0.25rem 0.3rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: var(--warm-white);
+      color: var(--ink);
+    }
+    .gifting-label { font-size: 0.78rem; color: var(--green); font-weight: 500; }
     .claimed-by {
       font-size: 0.75rem;
       color: var(--green);
@@ -485,7 +495,23 @@
       z-index: 200;
       padding: 1rem;
     }
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink-soft);
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .modal-close:hover { background: var(--tag-bg); color: var(--ink); }
     .modal {
+      position: relative;
       background: var(--warm-white);
       border-radius: 16px;
       padding: 2rem;
@@ -816,8 +842,9 @@
 </div>
 
 <!-- Add / Edit Modal -->
-<div class="modal-overlay" id="wish-modal" style="display:none;" onclick="closeModalIfOutside(event, 'wish-modal')">
+<div class="modal-overlay" id="wish-modal" style="display:none;">
   <div class="modal">
+    <button class="modal-close" aria-label="Close" title="Close" onclick="closeModal('wish-modal')">×</button>
     <h3 id="modal-title">Add a wish</h3>
     <div class="form-group">
       <label>Link (optional)</label>
@@ -829,13 +856,17 @@
       <label>Item name *</label>
       <input type="text" id="wish-name" maxlength="200" placeholder="e.g. Cozy knit blanket, Kindle Paperwhite..." />
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+    <div style="display:grid;grid-template-columns:1fr 72px 1fr;gap:0.75rem;">
       <div class="form-group">
         <label>Price (approx.)</label>
         <div class="price-input">
           <span>$</span>
           <input type="number" id="wish-price" min="0" max="9999999" step="0.01" inputmode="decimal" placeholder="50" />
         </div>
+      </div>
+      <div class="form-group">
+        <label>Count</label>
+        <input type="number" id="wish-count" min="1" max="99" step="1" inputmode="numeric" value="1" />
       </div>
       <div class="form-group">
         <label>Priority</label>
@@ -959,7 +990,7 @@
   let currentGroupId = null;
   let members = {};           // uid -> { name, photoURL }
   let wishes = [];
-  let claims = {};            // wishId -> { uid, wishOwnerUid } | null (never loaded for own wishes)
+  let claims = {};            // wishId -> [{ uid, qty }] (never loaded for own wishes)
   let currentView = 'all';
   let currentFilter = 'all';
   let filterPersonUid = null;
@@ -993,7 +1024,8 @@
   const memberRef = (gid, uid) => doc(fb.db, 'groups', gid, 'members', uid);
   const wishesCol = gid => collection(fb.db, 'groups', gid, 'wishes');
   const wishRef = (gid, wid) => doc(fb.db, 'groups', gid, 'wishes', wid);
-  const claimRef = (gid, wid) => doc(fb.db, 'groups', gid, 'claims', wid);
+  const claimsCol = (gid, wid) => collection(fb.db, 'groups', gid, 'wishes', wid, 'claims');
+  const claimRef = (gid, wid, uid) => doc(fb.db, 'groups', gid, 'wishes', wid, 'claims', uid);
   const inviteRef = code => doc(fb.db, 'invites', code);
 
   // ── Screens ──
@@ -1149,8 +1181,8 @@
     });
     wanted.forEach(function(wid) {
       if (unsub.claims[wid]) return;
-      unsub.claims[wid] = onSnapshot(claimRef(gid, wid), function(snap) {
-        claims[wid] = snap.exists() ? snap.data() : null;
+      unsub.claims[wid] = onSnapshot(claimsCol(gid, wid), function(snap) {
+        claims[wid] = snap.docs.map(d => ({ uid: d.id, qty: d.data().qty }));
         renderAll();
       }, onListenError);
     });
@@ -1275,11 +1307,11 @@
     const gid = g.id;
     const ops = [];
     wishes.filter(w => w.ownerUid === user.uid).forEach(function(w) {
-      ops.push(b => b.delete(claimRef(gid, w.id)));
+      ops.push(...deleteClaimOps(gid, w.id, g.memberUids));
       ops.push(b => b.delete(wishRef(gid, w.id)));
     });
-    Object.entries(claims).forEach(function([wid, c]) {
-      if (c && c.uid === user.uid) ops.push(b => b.delete(claimRef(gid, wid)));
+    Object.entries(claims).forEach(function([wid, list]) {
+      if (list.some(c => c.uid === user.uid)) ops.push(b => b.delete(claimRef(gid, wid, user.uid)));
     });
     try {
       await commitInChunks(ops);
@@ -1415,7 +1447,7 @@
       const theirWishes = await getDocs(query(wishesCol(gid), where('ownerUid', '==', uid)));
       const ops = [];
       theirWishes.forEach(function(w) {
-        ops.push(b => b.delete(claimRef(gid, w.id)));
+        ops.push(...deleteClaimOps(gid, w.id, g.memberUids));
         ops.push(b => b.delete(wishRef(gid, w.id)));
       });
       await commitInChunks(ops);
@@ -1439,7 +1471,7 @@
       const [wishSnap, memberSnap] = await Promise.all([getDocs(wishesCol(gid)), getDocs(membersCol(gid))]);
       const ops = [];
       wishSnap.forEach(function(w) {
-        ops.push(b => b.delete(claimRef(gid, w.id)));
+        ops.push(...deleteClaimOps(gid, w.id, g.memberUids));
         ops.push(b => b.delete(wishRef(gid, w.id)));
       });
       memberSnap.forEach(m => ops.push(b => b.delete(memberRef(gid, m.id))));
@@ -1476,23 +1508,37 @@
     return (members[uid] && members[uid].name) || 'Former member';
   }
 
-  // Claims by people who have since left the Group count as unclaimed.
-  function claimOf(w) {
-    if (w.ownerUid === user.uid) return null;
-    const c = claims[w.id];
+  function wishCount(w) { return w.count || 1; }
+
+  // Who is gifting this wish. Always empty for your own wishes, and people who have
+  // since left the Group no longer count.
+  function claimsOf(w) {
+    if (w.ownerUid === user.uid) return [];
     const g = currentGroup();
-    return c && g && g.memberUids.includes(c.uid) ? c : null;
+    return (claims[w.id] || []).filter(c => g && g.memberUids.includes(c.uid));
+  }
+  function myClaimQty(w) {
+    const mine = claimsOf(w).find(c => c.uid === user.uid);
+    return mine ? mine.qty : 0;
+  }
+  function remainingQty(w) {
+    return Math.max(0, wishCount(w) - claimsOf(w).reduce((sum, c) => sum + c.qty, 0));
+  }
+
+  // The owner can't read claims, so these are blind deletes, one per person who might have claimed.
+  function deleteClaimOps(gid, wid, uids) {
+    return uids.map(uid => b => b.delete(claimRef(gid, wid, uid)));
   }
 
   function getFilteredWishes() {
     let list = wishes;
     if (currentView === 'mine') list = list.filter(w => w.ownerUid === user.uid);
-    if (currentView === 'claimed') list = list.filter(w => { const c = claimOf(w); return c && c.uid === user.uid; });
+    if (currentView === 'claimed') list = list.filter(w => myClaimQty(w) > 0);
     if (currentView === 'person' && filterPersonUid) list = list.filter(w => w.ownerUid === filterPersonUid);
     if (currentFilter === 'high') list = list.filter(w => w.priority === 'high');
     if (currentFilter === 'medium') list = list.filter(w => w.priority === 'medium');
     if (currentFilter === 'low') list = list.filter(w => w.priority === 'low');
-    if (currentFilter === 'unclaimed') list = list.filter(w => !claimOf(w));
+    if (currentFilter === 'unclaimed') list = list.filter(w => remainingQty(w) > 0);
     return list;
   }
 
@@ -1557,16 +1603,30 @@
 
   function renderCard(w) {
     const isOwner = w.ownerUid === user.uid;
-    const claim = claimOf(w);
-    const iClaimedIt = !!claim && claim.uid === user.uid;
+    const count = wishCount(w);
+    const mine = myClaimQty(w);
+    const remaining = remainingQty(w);
+    const claimers = claimsOf(w);
+    const claimerText = claimers
+      .map(c => esc(c.uid === user.uid ? 'You' : memberName(c.uid)) + (count > 1 ? ' (' + c.qty + ')' : ''))
+      .join(', ');
+    const qtyOptions = (max, selected) => Array.from({ length: max }, (_, i) =>
+      `<option value="${i + 1}" ${i + 1 === selected ? 'selected' : ''}>${i + 1}</option>`).join('');
 
     const claimBtn = isOwner
       ? `<span class="own-item-badge">Your wish</span>`
-      : iClaimedIt
-        ? `<button class="btn btn-sm btn-ghost" onclick="unclaimWish('${w.id}')">Unclaim</button>`
-        : !claim
-          ? `<button class="btn btn-sm" onclick="claimWish('${w.id}')">🎁 I'll gift this</button>`
-          : `<span class="claimed-by">Claimed by ${esc(memberName(claim.uid))}</span>`;
+      : mine
+        ? `<span class="gifting-label">🎁 Gifting</span>
+           ${count > 1 ? `<select class="qty-select" aria-label="How many you're gifting" onchange="claimWish('${w.id}', this.value)">${qtyOptions(mine + remaining, mine)}</select>` : ''}
+           <button class="btn btn-sm btn-ghost" onclick="unclaimWish('${w.id}')">Unclaim</button>`
+        : remaining
+          ? `${remaining > 1 ? `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift">${qtyOptions(remaining, 1)}</select>` : ''}
+             <button class="btn btn-sm" onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`
+          : `<span class="claimed-by">Claimed by ${claimerText}</span>`;
+    // Shows who else is gifting when the buttons don't already say it.
+    const claimedLine = claimers.length && (mine || remaining) && (count > 1)
+      ? `<div class="claimed-by">Claimed by ${claimerText}${remaining ? ' · ' + remaining + ' left' : ''}</div>`
+      : '';
 
     const editBtn = isOwner
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
@@ -1577,7 +1637,7 @@
     const link = safeLink(w.link);
 
     return `
-      <div class="wish-card ${claim ? 'claimed' : ''}" id="card-${w.id}">
+      <div class="wish-card ${!isOwner && !remaining ? 'claimed' : ''}" id="card-${w.id}">
         <div>
           <div class="wish-card-title" title="${esc(w.name)}">${link
             ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
@@ -1586,9 +1646,11 @@
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
             ${w.price ? `<span class="price-tag">${esc(displayPrice(w.price))}</span>` : ''}
             <span class="tag">${esc(memberName(w.ownerUid))}</span>
+            <span class="tag">Count: ${count}</span>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
+        ${claimedLine}
         <div class="wish-card-actions">
           ${claimBtn}
           <span style="flex:1"></span>
@@ -1596,6 +1658,11 @@
           ${deleteBtn}
         </div>
       </div>`;
+  }
+
+  function claimFromSelect(id) {
+    const select = document.getElementById('qty-' + id);
+    claimWish(id, select ? select.value : 1);
   }
 
   function renderSidebar() {
@@ -1615,7 +1682,7 @@
   function renderCounts() {
     document.getElementById('count-all').textContent = wishes.length;
     document.getElementById('count-mine').textContent = wishes.filter(w => w.ownerUid === user.uid).length;
-    document.getElementById('count-claimed').textContent = wishes.filter(w => { const c = claimOf(w); return c && c.uid === user.uid; }).length;
+    document.getElementById('count-claimed').textContent = wishes.filter(w => myClaimQty(w) > 0).length;
   }
 
   // ── Navigation ──
@@ -1664,6 +1731,7 @@
     document.getElementById('modal-title').textContent = 'Add a wish';
     document.getElementById('wish-name').value = '';
     document.getElementById('wish-price').value = '';
+    document.getElementById('wish-count').value = '1';
     document.getElementById('wish-priority').value = 'medium';
     document.getElementById('wish-link').value = '';
     document.getElementById('wish-notes').value = '';
@@ -1680,6 +1748,7 @@
     document.getElementById('wish-name').value = w.name;
     const amount = priceAmount(w.price);
     document.getElementById('wish-price').value = isNaN(amount) ? '' : String(amount);
+    document.getElementById('wish-count').value = String(wishCount(w));
     document.getElementById('wish-priority').value = w.priority;
     document.getElementById('wish-link').value = w.link || '';
     document.getElementById('wish-notes').value = w.notes || '';
@@ -1859,10 +1928,16 @@
       showToast('Price must be a number, like 49.99');
       return;
     }
+    const count = Number(document.getElementById('wish-count').value);
+    if (!Number.isInteger(count) || count < 1 || count > 99) {
+      showToast('Count must be a whole number from 1 to 99');
+      return;
+    }
 
     const fields = {
       name: name.slice(0, 200),
       price: isNaN(price) ? '' : String(Math.round(price * 100) / 100),
+      count,
       priority: document.getElementById('wish-priority').value,
       link: link.slice(0, 2000),
       notes: document.getElementById('wish-notes').value.trim().slice(0, 1000)
@@ -1886,7 +1961,7 @@
     const gid = currentGroupId;
     try {
       const batch = writeBatch(fb.db);
-      batch.delete(claimRef(gid, id));
+      deleteClaimOps(gid, id, currentGroup().memberUids).forEach(op => op(batch));
       batch.delete(wishRef(gid, id));
       await batch.commit();
       showToast('Wish removed');
@@ -1896,22 +1971,35 @@
     }
   }
 
-  async function claimWish(id) {
+  // Sets how many of a wish you're gifting. Rechecks what's left first, in case someone
+  // else claimed some since the page last updated.
+  async function claimWish(id, rawQty) {
     const w = wishes.find(x => x.id === id);
     if (!w) return;
-    if (claimOf(w)) { showToast('Already claimed!'); return; }
+    const qty = Number(rawQty) || 1;
+    const gid = currentGroupId;
     try {
-      await setDoc(claimRef(currentGroupId, id), { uid: user.uid, wishOwnerUid: w.ownerUid, claimedAt: serverTimestamp() });
-      showToast('🎁 Claimed! You\'re gifting this.');
+      const latest = await getDocs(claimsCol(gid, id));
+      const others = latest.docs
+        .filter(d => d.id !== user.uid && currentGroup().memberUids.includes(d.id))
+        .reduce((sum, d) => sum + d.data().qty, 0);
+      const available = wishCount(w) - others;
+      if (qty > available) {
+        showToast(available > 0 ? 'Only ' + available + ' left to gift.' : 'Someone else just claimed this.');
+        renderGrid();
+        return;
+      }
+      await setDoc(claimRef(gid, id, user.uid), { qty, claimedAt: serverTimestamp() });
+      showToast('🎁 You\'re gifting ' + (wishCount(w) > 1 ? qty + ' of this.' : 'this.'));
     } catch (e) {
       console.error('Claim failed:', e);
-      showToast('Someone else just claimed this.');
+      showToast('Failed to claim. Try again.');
     }
   }
 
   async function unclaimWish(id) {
     try {
-      await deleteDoc(claimRef(currentGroupId, id));
+      await deleteDoc(claimRef(currentGroupId, id, user.uid));
       showToast('Unclaimed');
     } catch (e) {
       console.error('Unclaim failed:', e);
@@ -2077,7 +2165,7 @@
     signIn, signOutUser, handleJoin, cancelJoin, joinWithCode, showJoinModal, pickGroup, leaveGroup,
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
-    showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, onLinkPaste, onLinkChange,
+    showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
     closeModal, closeModalIfOutside, toggleMenu, closeMenus, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
