@@ -983,6 +983,17 @@
   </div>
 </div>
 
+<!-- Confirm Dialog -->
+<div class="modal-overlay" id="confirm-modal" style="display:none;z-index:250;">
+  <div class="modal" style="max-width:420px;">
+    <p id="confirm-message" style="font-size:0.92rem;line-height:1.5;"></p>
+    <div class="modal-actions">
+      <button class="btn" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-accent" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1345,7 +1356,7 @@
   async function leaveGroup() {
     const g = currentGroup();
     if (!g) return;
-    if (!confirm('Leave "' + g.name + '"? Your wishes in this Group will be deleted, and you will need a new invite to rejoin.')) return;
+    if (!await askConfirm('Leave "' + g.name + '"? Your wishes in this Group will be deleted, and you will need a new invite to rejoin.')) return;
     const gid = g.id;
     const ops = [];
     wishes.filter(w => w.ownerUid === user.uid).forEach(function(w) {
@@ -1468,7 +1479,7 @@
   async function rotateInvite(gid) {
     const g = adminGroups.find(x => x.id === gid);
     if (!g) return;
-    if (g.code && !confirm('Replace the invite code for "' + g.name + '"? The old code and link stop working. People already in the Group stay.')) return;
+    if (g.code && !await askConfirm('Replace the invite code for "' + g.name + '"? The old code and link stop working. People already in the Group stay.')) return;
     const code = newInviteCode();
     try {
       const batch = writeBatch(fb.db);
@@ -1487,7 +1498,7 @@
     const g = adminGroups.find(x => x.id === gid);
     const m = g && g.members.find(x => x.uid === uid);
     if (!g || !m) return;
-    if (!confirm('Remove ' + m.name + ' from "' + g.name + '"? Their wishes in this Group will be deleted.')) return;
+    if (!await askConfirm('Remove ' + m.name + ' from "' + g.name + '"? Their wishes in this Group will be deleted.')) return;
     try {
       const theirWishes = await getDocs(query(wishesCol(gid), where('ownerUid', '==', uid)));
       const ops = [];
@@ -1511,7 +1522,7 @@
   async function deleteGroup(gid) {
     const g = adminGroups.find(x => x.id === gid);
     if (!g) return;
-    if (!confirm('Delete "' + g.name + '" and every wish in it? This cannot be undone.')) return;
+    if (!await askConfirm('Delete "' + g.name + '" and every wish in it? This cannot be undone.')) return;
     try {
       const [wishSnap, memberSnap] = await Promise.all([getDocs(wishesCol(gid)), getDocs(membersCol(gid))]);
       const ops = [];
@@ -1536,7 +1547,7 @@
   async function clearClaims(gid) {
     const g = adminGroups.find(x => x.id === gid);
     if (!g) return;
-    if (!confirm('Clear every claim in "' + g.name + '"? Wishes stay, but all gifts become unclaimed. This cannot be undone.')) return;
+    if (!await askConfirm('Clear every claim in "' + g.name + '"? Wishes stay, but all gifts become unclaimed. This cannot be undone.')) return;
     try {
       const wishSnap = await getDocs(wishesCol(gid));
       const ops = [];
@@ -2107,7 +2118,7 @@
   }
 
   async function deleteWish(id) {
-    if (!confirm('Remove this wish?')) return;
+    if (!await askConfirm('Remove this wish?')) return;
     const gid = currentGroupId;
     try {
       const batch = writeBatch(fb.db);
@@ -2275,6 +2286,22 @@
   }
 
   // ── Modals ──
+  // Used instead of the browser's confirm(), which some browsers block without showing
+  // anything, so the action would silently do nothing.
+  function askConfirm(message) {
+    return new Promise(function(resolve) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-message').textContent = message;
+      modal.style.display = 'flex';
+      const finish = function(answer) {
+        modal.style.display = 'none';
+        resolve(answer);
+      };
+      document.getElementById('confirm-ok').onclick = () => finish(true);
+      document.getElementById('confirm-cancel').onclick = () => finish(false);
+    });
+  }
+
   function closeModal(id) { document.getElementById(id).style.display = 'none'; }
   function closeModalIfOutside(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
   function isOpen(id) { return document.getElementById(id).style.display === 'flex'; }
