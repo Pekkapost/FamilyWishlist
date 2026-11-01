@@ -444,10 +444,9 @@
     .wish-card-actions {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
       gap: 0.4rem;
       margin-top: auto;
-      min-height: 28px;  /* same height with or without buttons */
+      height: 28px;  /* fixed, so nothing in the row shifts between claim states */
     }
     .wish-card-title a {
       color: inherit;
@@ -457,6 +456,8 @@
     }
     .wish-card-title a:hover { color: var(--accent); text-decoration-color: currentColor; }
     .qty-select {
+      width: 44px;
+      height: 28px;
       font-family: 'DM Sans', sans-serif;
       font-size: 0.78rem;
       padding: 0.25rem 0.3rem;
@@ -477,7 +478,8 @@
     }
     .wish-card.gifting { opacity: 1; }
     .claimed-line { min-height: 1.2rem; line-height: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .claim-btn { width: 7.5rem; white-space: nowrap; padding-left: 0; padding-right: 0; }
+    .wish-card-actions .tag { white-space: nowrap; flex-shrink: 0; }
+    .claim-btn { width: 7.5rem; height: 28px; line-height: 1; white-space: nowrap; padding: 0; }
     .claimed-by {
       font-size: 0.75rem;
       color: var(--green);
@@ -724,6 +726,7 @@
       }
       .content { padding: 1rem; }
       .content-header { flex-wrap: wrap; gap: 0.75rem; }
+      .claim-btn { width: 6.5rem; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
     }
   </style>
@@ -1636,15 +1639,17 @@
     const qtyOptions = (max, selected) => Array.from({ length: max }, (_, i) =>
       `<option value="${i + 1}" ${i + 1 === selected ? 'selected' : ''}>${i + 1}</option>`).join('');
 
+    // The selector and button always keep their slots: the selector is greyed out when only
+    // one can be chosen, and both are hidden (still taking up space) when nothing is left.
+    const maxQty = mine + remaining;
+    const qtySelect = `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift"
+        ${maxQty < 2 ? 'disabled' : ''} ${maxQty ? '' : 'style="visibility:hidden"'}
+        ${mine ? `onchange="claimWish('${w.id}', this.value)"` : ''}>${qtyOptions(Math.max(maxQty, 1), mine || 1)}</select>`;
     const claimBtn = isOwner
       ? `<span class="own-item-badge">Your wish</span>`
       : mine
-        ? `${count > 1 ? `<select class="qty-select" aria-label="How many you're gifting" onchange="claimWish('${w.id}', this.value)">${qtyOptions(mine + remaining, mine)}</select>` : ''}
-           <button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
-        : remaining
-          ? `${remaining > 1 ? `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift">${qtyOptions(remaining, 1)}</select>` : ''}
-             <button class="btn btn-sm claim-btn" onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`
-          : '';
+        ? `${qtySelect}<button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
+        : `${qtySelect}<button class="btn btn-sm claim-btn" ${remaining ? '' : 'style="visibility:hidden"'} onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`;
     // Always on the card, blank until someone claims, so claiming doesn't change its height.
     const claimedText = claimers.length
       ? 'Claimed by ' + claimerText + (remaining ? ' · ' + remaining + ' left' : '')
