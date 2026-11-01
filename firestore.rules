@@ -140,30 +140,6 @@ service cloud.firestore {
             || (isMember(gid) && wishData().ownerUid == request.auth.uid);
         }
       }
-
-      // ── Old claims ── the previous version's format, kept only while that version is
-      // still being served. Remove once the new version is live.
-      match /claims/{wid} {
-        function validClaim() {
-          let d = request.resource.data;
-          return d.keys().hasOnly(['uid', 'wishOwnerUid', 'claimedAt'])
-            && d.uid == request.auth.uid
-            && d.wishOwnerUid == get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data.ownerUid
-            && d.wishOwnerUid != request.auth.uid;
-        }
-
-        // Checked against the wish, not the claim, so the owner is refused whether or not a
-        // claim exists — otherwise the difference would give the surprise away.
-        allow get: if isMember(gid)
-          && get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data.ownerUid != request.auth.uid;
-        allow create: if isMember(gid) && validClaim();
-        // A claim left behind by someone no longer in the Group can be taken over.
-        allow update: if isMember(gid) && validClaim() && !(resource.data.uid in groupData(gid).memberUids);
-        allow delete: if isAdmin() || (signedIn() && (
-          resource == null
-          || resource.data.uid == request.auth.uid
-          || resource.data.wishOwnerUid == request.auth.uid));
-      }
     }
   }
 }

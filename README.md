@@ -145,7 +145,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
-| **Wish Grid** | Wide card per wish: one-line name, the owner's picture in the top right (name on hover), priority dot, price, notes, and the count at the bottom left. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
+| **Wish Grid** | Wide card per wish, outlined in its priority color: one-line name, the owner's picture in the top right (name on hover or tap), price, notes, and the count at the bottom left. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
 | **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. Closes with × or Cancel, not by clicking outside it. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
@@ -153,7 +153,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 
 | Element | Behaviour |
 |---|---|
-| **Filter chips** | Unclaimed (the default) · 🔴 High · 🟡 Medium · 🔵 Low · All. Combine with any sidebar view; Unclaimed also keeps anything you're gifting. |
+| **Filter chips** | Unclaimed (on by default) and one priority can be on together; click again to turn off, or All to clear both. Combine with any sidebar view. Unclaimed also keeps anything you're gifting. |
 | **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
 | **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish; the count tag shows how many are left (owners always see their full count). Dimmed once none are left, unless you're gifting it: those get a 🎀 ribbon on the card's top-left corner. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
@@ -165,6 +165,8 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Create** | New Group with you as its first member and a fresh invite code. |
 | **Invite** | *Copy link* · *Copy code* · *New code* — replacing a code stops the old one and its links from working; people already in the Group stay. |
 | **Members** | Click × to remove someone. Their wishes in that Group are deleted. |
+| **Clear claims** | Makes everything in a Group unclaimed again, for next year. Wishes stay. |
+| **Export backup** | Saves every Group's members and wishes to a JSON file. Claims are left out, so it can't spoil a surprise. |
 | **Delete Group** | Deletes the Group, its members, wishes, claims, and invite code. |
 
 ## Limitations
@@ -177,6 +179,8 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
+| **Removed gifts** | If a wish you're gifting is deleted, you get a notice, but only in a browser that had already seen your claim. |
+| **Backups** | Firebase's free plan has no automatic backups; use **Export backup**. |
 | **Count** | Rules cap each giver at the wish's count but can't add up givers. The app rechecks before saving, so only near-simultaneous claims can go over. If an owner lowers a count, existing claims stay. |
 | **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |
 | **Link autofill** | Best effort. Works on Amazon, LEGO, and most Shopify-style shops; Walmart, Etsy, Best Buy, and REI block it, and then the name is guessed from the URL and the price is left blank. Prices are dollars only. Results are cached for 6 hours, so a price can lag a recent change. |
