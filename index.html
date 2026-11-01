@@ -356,7 +356,7 @@
     /* ── Wishlist cards ── */
     .items-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
       gap: 1rem;
     }
     .wish-card {
@@ -375,8 +375,8 @@
     .wish-card.claimed::after {
       content: '✓ Claimed';
       position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
+      top: 1.15rem;
+      right: 3.2rem;
       font-size: 0.72rem;
       font-weight: 500;
       background: var(--green-bg);
@@ -391,21 +391,26 @@
       font-weight: 600;
       color: var(--ink);
       line-height: 1.3;
-      padding-right: 2rem;
-      /* Always two lines tall, so every card lines up whatever the name's length;
-         longer names end in "…" (the full name shows on hover). */
-      min-height: calc(1.05rem * 1.3 * 2);
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
+      /* One line, clear of the owner's icon; longer names end in "…" (full name on hover). */
+      padding-right: 2.5rem;
+      white-space: nowrap;
       overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wish-card.claimed .wish-card-title { padding-right: 8rem; }
+    .wish-owner {
+      position: absolute;
+      top: 1.1rem;
+      right: 1.1rem;
+      display: inline-flex;
+      cursor: default;
     }
     .wish-card-meta {
       display: flex;
       align-items: center;
       gap: 0.5rem;
       flex-wrap: wrap;
+      min-height: 1.4rem;  /* same height with or without a price */
     }
     .priority-dot {
       width: 8px;
@@ -438,6 +443,8 @@
     }
     .wish-card-actions {
       display: flex;
+      align-items: center;
+      flex-wrap: wrap;
       gap: 0.4rem;
       margin-top: auto;
     }
@@ -1638,6 +1645,7 @@
 
     return `
       <div class="wish-card ${!isOwner && !remaining ? 'claimed' : ''}" id="card-${w.id}">
+        <span class="wish-owner" title="${esc(memberName(w.ownerUid))}">${avatarHTML(memberName(w.ownerUid), (members[w.ownerUid] || {}).photoURL, 28)}</span>
         <div>
           <div class="wish-card-title" title="${esc(w.name)}">${link
             ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
@@ -1645,13 +1653,12 @@
           <div class="wish-card-meta" style="margin-top:0.4rem;">
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
             ${w.price ? `<span class="price-tag">${esc(displayPrice(w.price))}</span>` : ''}
-            <span class="tag">${esc(memberName(w.ownerUid))}</span>
-            <span class="tag">Count: ${count}</span>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
         ${claimedLine}
         <div class="wish-card-actions">
+          <span class="tag">Count: ${count}</span>
           ${claimBtn}
           <span style="flex:1"></span>
           ${editBtn}
