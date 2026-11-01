@@ -477,7 +477,16 @@
       z-index: 1;
     }
     .wish-card.gifting { opacity: 1; }
-    .wish-card-actions .tag { white-space: nowrap; flex-shrink: 0; }
+    /* Fixed width with even digits, so the row doesn't shift as the count changes. */
+    .wish-card-actions .tag {
+      width: 4.75rem;
+      padding-left: 0;
+      padding-right: 0;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
     .claim-btn { width: 7.5rem; height: 28px; line-height: 1; white-space: nowrap; padding: 0; }
     .own-item-badge {
       font-size: 0.7rem;
@@ -720,7 +729,7 @@
       }
       .content { padding: 1rem; }
       .content-header { flex-wrap: wrap; gap: 0.75rem; }
-      .claim-btn { width: 6.5rem; }
+      .claim-btn { width: 6rem; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
     }
   </style>
@@ -1558,8 +1567,8 @@
     if (currentFilter === 'high') list = list.filter(w => w.priority === 'high');
     if (currentFilter === 'medium') list = list.filter(w => w.priority === 'medium');
     if (currentFilter === 'low') list = list.filter(w => w.priority === 'low');
-    // "I'm gifting" always lists everything you're gifting, even wishes now fully claimed.
-    if (currentFilter === 'unclaimed' && currentView !== 'claimed') list = list.filter(w => remainingQty(w) > 0);
+    // Unclaimed also keeps anything you're gifting, even once none are left.
+    if (currentFilter === 'unclaimed') list = list.filter(w => remainingQty(w) > 0 || myClaimQty(w) > 0);
     return list;
   }
 
