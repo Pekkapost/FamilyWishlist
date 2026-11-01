@@ -153,7 +153,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 
 | Element | Behaviour |
 |---|---|
-| **Filter chips** | All · 🔴 High · 🟡 Medium · 🔵 Low · Not yet claimed. Combine with any sidebar view. |
+| **Filter chips** | Unclaimed (the default) · 🔴 High · 🟡 Medium · 🔵 Low · All. Combine with any sidebar view; *I'm gifting* always lists everything you're gifting. |
 | **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
 | **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish (*Claimed by Nicole (2) · 1 left*). Dimmed once its whole count is claimed, unless you're gifting it: those get a 🎀 ribbon on the card's top-left corner. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |

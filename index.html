@@ -850,11 +850,11 @@
       </div>
 
       <div class="filter-bar">
-        <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
+        <span class="filter-chip active" onclick="setFilter('unclaimed', this)">Unclaimed</span>
         <span class="filter-chip" onclick="setFilter('high', this)">🔴 High</span>
         <span class="filter-chip" onclick="setFilter('medium', this)">🟡 Medium</span>
         <span class="filter-chip" onclick="setFilter('low', this)">🔵 Low</span>
-        <span class="filter-chip" onclick="setFilter('unclaimed', this)">Not yet claimed</span>
+        <span class="filter-chip" onclick="setFilter('all', this)">All</span>
       </div>
 
       <div class="items-grid" id="items-grid">
@@ -1015,7 +1015,7 @@
   let wishes = [];
   let claims = {};            // wishId -> [{ uid, qty }] (never loaded for own wishes)
   let currentView = 'all';
-  let currentFilter = 'all';
+  let currentFilter = 'unclaimed';
   let filterPersonUid = null;
   let editingId = null;
   let pendingInvite = null;   // { code, groupId, groupName }
@@ -1564,7 +1564,8 @@
     if (currentFilter === 'high') list = list.filter(w => w.priority === 'high');
     if (currentFilter === 'medium') list = list.filter(w => w.priority === 'medium');
     if (currentFilter === 'low') list = list.filter(w => w.priority === 'low');
-    if (currentFilter === 'unclaimed') list = list.filter(w => remainingQty(w) > 0);
+    // "I'm gifting" always lists everything you're gifting, even wishes now fully claimed.
+    if (currentFilter === 'unclaimed' && currentView !== 'claimed') list = list.filter(w => remainingQty(w) > 0);
     return list;
   }
 
