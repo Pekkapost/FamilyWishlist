@@ -456,6 +456,7 @@
       color: var(--ink);
     }
     .priority-label { font-size: 0.72rem; font-weight: 600; color: #B91C1C; }
+    .received-label { font-size: 0.72rem; font-weight: 500; color: var(--green); }
     .bought-check {
       display: inline-flex;
       align-items: center;
@@ -1051,6 +1052,20 @@
   <div class="modal image-modal">
     <button class="modal-close" aria-label="Close" title="Close" onclick="closeModal('image-modal')">×</button>
     <img id="image-modal-img" alt="">
+  </div>
+</div>
+
+<!-- Received Dialog -->
+<div class="modal-overlay" id="received-modal" style="display:none;" onclick="closeModalIfOutside(event, 'received-modal')">
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" aria-label="Close" title="Close" onclick="closeModal('received-modal')">×</button>
+    <h3>How many have you received?</h3>
+    <p id="received-name" style="font-size:0.88rem;color:var(--ink-soft);margin-bottom:0.75rem;"></p>
+    <select id="received-qty" aria-label="How many received"></select>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('received-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveReceivedQty()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1700,12 +1715,20 @@
     const mine = myClaim(w);
     return mine ? mine.qty : 0;
   }
-  // Received wishes are kept as a record, but only show under the Received filter.
+  // Fully received wishes are kept as a record, and only show under Received and All.
   function activeWishes() {
-    return wishes.filter(w => !w.received);
+    return wishes.filter(w => !fullyReceived(w));
   }
+  // How many the owner has received. `received` is the older yes-or-no field.
+  function receivedQty(w) {
+    return w.receivedQty ?? (w.received ? wishCount(w) : 0);
+  }
+  function fullyReceived(w) {
+    return receivedQty(w) >= wishCount(w);
+  }
+  // Received gifts have usually been claimed too, so they overlap rather than add up.
   function remainingQty(w) {
-    return Math.max(0, wishCount(w) - claimsOf(w).reduce((sum, c) => sum + c.qty, 0));
+    return Math.max(0, wishCount(w) - Math.max(receivedQty(w), claimsOf(w).reduce((sum, c) => sum + c.qty, 0)));
   }
 
   // Deletes by id, one per person who might have claimed, without reading the claims first.
@@ -1714,7 +1737,10 @@
   }
 
   function getFilteredWishes() {
-    let list = showReceived ? wishes.filter(w => w.received) : activeWishes();
+    const showAll = !showReceived && !unclaimedOnly && !currentPriority;
+    let list = showReceived ? wishes.filter(w => receivedQty(w) > 0)
+      : showAll ? [...activeWishes(), ...wishes.filter(fullyReceived)]
+      : activeWishes();
     if (currentView === 'mine') list = list.filter(w => w.ownerUid === user.uid);
     if (currentView === 'claimed') list = list.filter(w => myClaimQty(w) > 0);
     if (currentView === 'person' && filterPersonUid) list = list.filter(w => w.ownerUid === filterPersonUid);
@@ -1843,7 +1869,8 @@
     const qtySelect = `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift"
         ${maxQty < 2 ? 'disabled' : ''} ${maxQty ? '' : 'style="visibility:hidden"'}
         ${mine ? `onchange="claimWish('${w.id}', this.value)"` : ''}>${qtyOptions(Math.max(maxQty, 1), mine || 1)}</select>`;
-    const received = !!w.received;
+    const received = fullyReceived(w);
+    const gotQty = receivedQty(w);
     const claimBtn = isOwner || received
       ? ''
       : mine
@@ -1854,14 +1881,14 @@
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
       : '';
     const receivedBtn = isOwner
-      ? `<button class="btn btn-sm btn-ghost" onclick="setReceived('${w.id}', ${!received})">${received ? 'Not received' : 'Received'}</button>`
+      ? `<button class="btn btn-sm btn-ghost" onclick="markReceived('${w.id}')">${received && count === 1 ? 'Not received' : 'Received'}</button>`
       : '';
     const deleteBtn = (isOwner || isAdmin)
       ? `<button class="btn btn-sm btn-ghost btn-delete" onclick="deleteWish('${w.id}')">Delete</button>`
       : '';
     const link = safeLink(w.link);
     // Single wishes need no count; the slot stays so the selector never moves.
-    const countLabel = isOwner ? 'Wants ' + count : remaining + ' left';
+    const countLabel = isOwner ? 'Wants ' + (count - gotQty) : remaining + ' left';
     const showCount = !received && count > 1 && (isOwner || remaining > 0);
 
     return `
@@ -1877,6 +1904,7 @@
             <div class="wish-card-meta" style="margin-top:0.4rem;">
               <span class="price-tag">${w.price ? esc(displayPrice(w.price)) : '???'}</span>
               ${w.priority === 'high' ? '<span class="priority-label">High</span>' : ''}
+              ${gotQty > 0 && !received ? `<span class="received-label">${gotQty} received</span>` : ''}
             </div>
           </div>
         </div>
@@ -2316,7 +2344,7 @@
       const claimSnap = await getDocs(claimsCol(gid, id));
       const givers = claimSnap.docs.map(d => d.id).filter(uid => currentGroup().memberUids.includes(uid));
       // Once it's been received, nobody needs warning that it was claimed.
-      if (givers.length && !w.received) {
+      if (givers.length && !fullyReceived(w)) {
         const who = w.ownerUid === user.uid
           ? 'Someone'
           : givers.map(uid => uid === user.uid ? 'You' : memberName(uid)).join(', ');
@@ -2345,7 +2373,7 @@
       const others = latest.docs
         .filter(d => d.id !== user.uid && currentGroup().memberUids.includes(d.id))
         .reduce((sum, d) => sum + d.data().qty, 0);
-      const available = wishCount(w) - others;
+      const available = wishCount(w) - Math.max(others, receivedQty(w));
       if (qty > available) {
         showToast(available > 0 ? 'Only ' + available + ' left to gift.' : 'Someone else just claimed this.');
         renderGrid();
@@ -2370,10 +2398,30 @@
     }
   }
 
-  async function setReceived(id, received) {
+  // A single wish switches straight away; several ask how many first.
+  let receivingId = null;
+  function markReceived(id) {
+    const w = wishes.find(x => x.id === id);
+    if (!w) return;
+    const count = wishCount(w);
+    if (count === 1) { setReceivedQty(id, fullyReceived(w) ? 0 : 1); return; }
+    receivingId = id;
+    const current = receivedQty(w) || count;
+    document.getElementById('received-name').textContent = w.name + ' (wanted ' + count + ')';
+    document.getElementById('received-qty').innerHTML = Array.from({ length: count + 1 }, (_, i) =>
+      `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`).join('');
+    document.getElementById('received-modal').style.display = 'flex';
+  }
+
+  function saveReceivedQty() {
+    closeModal('received-modal');
+    setReceivedQty(receivingId, Number(document.getElementById('received-qty').value));
+  }
+
+  async function setReceivedQty(id, qty) {
     try {
-      await updateDoc(wishRef(currentGroupId, id), { received });
-      showToast(received ? 'Moved to Received' : 'Back on your wishlist');
+      await updateDoc(wishRef(currentGroupId, id), { receivedQty: qty });
+      showToast(qty ? qty + ' marked received' : 'Back on your wishlist');
     } catch (e) {
       console.error('Received failed:', e);
       showToast('Failed to save. Try again.');
@@ -2565,7 +2613,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, onImageInput, refreshFromLink, setBought, setReceived, showImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, onImageInput, refreshFromLink, setBought, markReceived, saveReceivedQty, showImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
   // ── Boot ──

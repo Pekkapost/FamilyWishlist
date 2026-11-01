@@ -153,8 +153,8 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 
 | Element | Behaviour |
 |---|---|
-| **Filter chips** | Unclaimed (on by default) and one priority can be on together; click again to turn off, or All to clear both. Combine with any sidebar view. Unclaimed also keeps anything you're gifting. *Received* shows only wishes marked received, which are left out of every other list and count. |
-| **Your own wishes** | *Received*, *Edit*, and *Delete*. Never shows whether anyone has claimed it, until you go to delete it. *Received* moves it to the Received filter, and *Not received* brings it back. |
+| **Filter chips** | Unclaimed (on by default) and one priority can be on together; click again to turn off, or All to clear both. Combine with any sidebar view. Unclaimed also keeps anything you're gifting. *Received* shows wishes with anything received. Fully received wishes also appear at the end of All, and are left out of every other list and count. |
+| **Your own wishes** | *Received*, *Edit*, and *Delete*. Never shows whether anyone has claimed it, until you go to delete it. *Received* marks a single wish straight away, or asks how many for a wish with a larger count, and lowers what the card says is still wanted. *Not received* or a lower number brings it back. |
 | **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish; the count tag shows how many are left (owners always see their full count). Dimmed once none are left, unless you're gifting it: those get a 🎀 ribbon on the card's top-left corner and a *Bought* checkbox that only you see. **I'm gifting** totals your gifts and how many are left to buy. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
 
