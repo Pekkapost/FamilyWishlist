@@ -99,7 +99,8 @@ service cloud.firestore {
       // ── Wishes ──
       match /wishes/{wid} {
         function validWish(d) {
-          return d.keys().hasOnly(['name', 'price', 'count', 'priority', 'link', 'notes', 'image', 'ownerUid', 'createdAt'])
+          return d.keys().hasOnly(['name', 'price', 'count', 'priority', 'link', 'notes', 'image', 'received', 'ownerUid', 'createdAt'])
+            && (!('received' in d) || d.received is bool)
             && (!('image' in d) || d.image == '' || (isText(d.image, 2000) && d.image.matches('(?i)https?://.+')))
             && (!('count' in d) || (d.count is int && d.count >= 1 && d.count <= 99))
             && isText(d.name, 200) && d.name.size() > 0
@@ -133,7 +134,8 @@ service cloud.firestore {
           allow create, update: if isMember(gid)
             && giver == request.auth.uid
             && wishData().ownerUid != request.auth.uid
-            && request.resource.data.keys().hasOnly(['qty', 'claimedAt'])
+            && request.resource.data.keys().hasOnly(['qty', 'claimedAt', 'bought'])
+            && (!('bought' in request.resource.data) || request.resource.data.bought is bool)
             && request.resource.data.qty is int
             && request.resource.data.qty >= 1
             && request.resource.data.qty <= wishData().get('count', 1);

@@ -145,17 +145,17 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
-| **Wish Grid** | Wide card per wish, outlined in its priority color: one-line name, the owner's picture in the top right (name on hover or tap), price, notes, and the count at the bottom left. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
-| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. Closes with × or Cancel, not by clicking outside it. |
+| **Wish Grid** | Wide card per wish, with its priority color on the left edge: a thumbnail (click for a larger view), a name of up to two lines, the owner's picture in the top right (name on hover or tap), price, a *High* label on high-priority wishes, notes, and the count at the bottom left when more than one is wanted. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
+| **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then an optional image address, item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. When editing, *Refresh image and price* checks the store again and asks before changing anything. Closes with × or Cancel, not by clicking outside it. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
 ### Wish Grid
 
 | Element | Behaviour |
 |---|---|
-| **Filter chips** | Unclaimed (on by default) and one priority can be on together; click again to turn off, or All to clear both. Combine with any sidebar view. Unclaimed also keeps anything you're gifting. |
-| **Your own wishes** | *Edit* and *Delete*, and a *Your wish* badge. Never shows whether anyone has claimed it. |
-| **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish; the count tag shows how many are left (owners always see their full count). Dimmed once none are left, unless you're gifting it: those get a 🎀 ribbon on the card's top-left corner. |
+| **Filter chips** | Unclaimed (on by default) and one priority can be on together; click again to turn off, or All to clear both. Combine with any sidebar view. Unclaimed also keeps anything you're gifting. *Received* shows only wishes marked received, which are left out of every other list and count. |
+| **Your own wishes** | *Received*, *Edit*, and *Delete*. Never shows whether anyone has claimed it, until you go to delete it. *Received* moves it to the Received filter, and *Not received* brings it back. |
+| **Other people's wishes** | Pick how many and *🎁 I'll gift this*; change the number or *Unclaim* later. Several people can share a wish; the count tag shows how many are left (owners always see their full count). Dimmed once none are left, unless you're gifting it: those get a 🎀 ribbon on the card's top-left corner and a *Bought* checkbox that only you see. **I'm gifting** totals your gifts and how many are left to buy. |
 | **Live updates** | Changes from anyone in the Group appear within a second or two, no reload needed. |
 
 ### Manage Groups
@@ -178,12 +178,12 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead. |
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
-| **Surprise** | Enforced by the app, not the server: a family member with technical skills could read claims on their own wishes. Whoever owns the Firebase project can also see every claim in the console. |
-| **Images** | Filled in only where the Worker can read the store, and not for wishes added earlier unless their link is pasted again. Images load through the Worker, which serves only the app's own pages. |
+| **Surprise** | Enforced by the app, not the server: a family member with technical skills could read claims on their own wishes, including whether a gift was bought. Whoever owns the Firebase project can also see every claim in the console. |
+| **Images** | Filled in only where the Worker can read the store; otherwise paste an image address by hand. Images load through the Worker, which serves only the app's own pages. |
 | **Removed gifts** | If a wish you're gifting is deleted, you get a notice, but only in a browser that had already seen your claim. |
 | **Backups** | Firebase's free plan has no automatic backups; use **Export backup**. |
 | **Count** | Rules cap each giver at the wish's count but can't add up givers. The app rechecks before saving, so only near-simultaneous claims can go over. If an owner lowers a count, existing claims stay. |
-| **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting or totals yet. |
+| **Price** | US dollars only — the field takes a number and cards add the `$`. No sorting by price. |
 | **Link autofill** | Best effort. Works on Amazon, LEGO, and most Shopify-style shops; Walmart, Etsy, Best Buy, and REI block it, and then the name is guessed from the URL and the price is left blank. Prices are dollars only. Results are cached for 6 hours, so a price can lag a recent change. |
 
 ## Authors

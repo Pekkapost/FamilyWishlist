@@ -382,6 +382,7 @@
     .image-modal { max-width: 640px; padding: 1.25rem; text-align: center; }
     .image-modal img { display: block; width: 100%; max-height: 75vh; object-fit: contain; margin-top: 2rem; background: #fff; border-radius: 8px; }
     .wish-image-preview { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
+    #wish-refresh { margin-top: 0.5rem; }
     .wish-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -394,14 +395,15 @@
       position: relative;
     }
     .wish-card:hover { border-color: var(--border-strong); }
-    .wish-card.claimed { opacity: 0.6; }
+    .wish-card.claimed, .wish-card.received { opacity: 0.6; }
     /* Priority shows as a strip on the card's left edge. */
     .wish-card.priority-high { border-left: 4px solid #DC2626; }
     .wish-card.priority-medium { border-left: 4px solid #EAB308; }
     .wish-card.priority-low { border-left: 4px solid #3B82F6; }
     /* Sits in the count's slot, which is empty once nothing is left. */
-    .wish-card.claimed::after {
-      content: '✓ Claimed';
+    .wish-card.received::after { content: '✓ Received'; }
+    .wish-card.claimed::after { content: '✓ Claimed'; }
+    .wish-card.claimed::after, .wish-card.received::after {
       position: absolute;
       bottom: 1.5rem;
       left: 1.25rem;
@@ -452,6 +454,15 @@
       font-size: 0.85rem;
       font-weight: 500;
       color: var(--ink);
+    }
+    .priority-label { font-size: 0.72rem; font-weight: 600; color: #B91C1C; }
+    .bought-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      cursor: pointer;
     }
     .wish-card-note {
       font-size: 0.82rem;
@@ -537,6 +548,7 @@
       margin-bottom: 0.5rem;
     }
     .empty-state p { font-size: 0.85rem; }
+    .empty-state .btn { margin-top: 1rem; }
 
     /* ── Modal ── */
     .modal-overlay {
@@ -764,17 +776,17 @@
       .content-header { align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
       .content-header > div { min-width: 0; }
       .content-header h2 { font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .content-header p { display: none; }
+      .content-header p:not(.keep-on-phone) { display: none; }
       .content-header .btn { flex-shrink: 0; padding: 0.3rem 0.75rem; font-size: 0.78rem; }
       /* The filters stay on one row and scroll sideways if they don't fit. */
       .filter-bar { flex-wrap: nowrap; gap: 0.3rem; margin-bottom: 0.6rem; overflow-x: auto; scrollbar-width: none; }
       .filter-bar::-webkit-scrollbar { display: none; }
-      .filter-chip { flex-shrink: 0; font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+      .filter-chip { flex-shrink: 0; white-space: nowrap; font-size: 0.75rem; padding: 0.2rem 0.6rem; }
       .items-grid { gap: 0.6rem; }
       .wish-card { padding: 0.65rem 0.75rem; gap: 0.45rem; }
       .wish-card-note { padding-top: 0.4rem; }
       .wish-owner { top: 0.6rem; right: 0.6rem; }
-      .wish-card.claimed::after { bottom: 0.8rem; left: 0.75rem; }
+      .wish-card.claimed::after, .wish-card.received::after { bottom: 0.8rem; left: 0.75rem; }
       .claim-btn { width: 6rem; }
       .wish-head .wish-thumb { width: 72px; height: 72px; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
@@ -904,6 +916,7 @@
         <span class="filter-chip" data-filter="high" onclick="setFilter('high')">🔴 High</span>
         <span class="filter-chip" data-filter="medium" onclick="setFilter('medium')">🟡 Medium</span>
         <span class="filter-chip" data-filter="low" onclick="setFilter('low')">🔵 Low</span>
+        <span class="filter-chip" data-filter="received" onclick="setFilter('received')">Received</span>
         <span class="filter-chip" data-filter="all" onclick="setFilter('all')">All</span>
       </div>
 
@@ -930,6 +943,11 @@
         <span class="wish-thumb"><img id="wish-image-img" alt="" onerror="this.style.display='none'"></span>
         <button class="btn btn-sm btn-ghost" onclick="setFormImage('')">Remove image</button>
       </div>
+      <button class="btn btn-sm" id="wish-refresh" style="display:none;" onclick="refreshFromLink()">Refresh image and price</button>
+    </div>
+    <div class="form-group">
+      <label>Image address (optional)</label>
+      <input type="url" id="wish-image-url" maxlength="2000" placeholder="Paste an image's address" oninput="onImageInput()" />
     </div>
     <div class="form-group">
       <label>Item name *</label>
@@ -1093,6 +1111,7 @@
   let currentView = 'all';
   let unclaimedOnly = true;
   let currentPriority = null; // 'high' | 'medium' | 'low' | null
+  let showReceived = false;   // on its own: replaces the other filters while on
   let filterPersonUid = null;
   let editingId = null;
   let pendingInvite = null;   // { code, groupId, groupName }
@@ -1288,7 +1307,7 @@
     wanted.forEach(function(wid) {
       if (unsub.claims[wid]) return;
       unsub.claims[wid] = onSnapshot(claimsCol(gid, wid), function(snap) {
-        claims[wid] = snap.docs.map(d => ({ uid: d.id, qty: d.data().qty }));
+        claims[wid] = snap.docs.map(d => ({ uid: d.id, qty: d.data().qty, bought: !!d.data().bought }));
         renderAll();
       }, onListenError);
     });
@@ -1674,9 +1693,16 @@
     const g = currentGroup();
     return (claims[w.id] || []).filter(c => g && g.memberUids.includes(c.uid));
   }
+  function myClaim(w) {
+    return claimsOf(w).find(c => c.uid === user.uid);
+  }
   function myClaimQty(w) {
-    const mine = claimsOf(w).find(c => c.uid === user.uid);
+    const mine = myClaim(w);
     return mine ? mine.qty : 0;
+  }
+  // Received wishes are kept as a record, but only show under the Received filter.
+  function activeWishes() {
+    return wishes.filter(w => !w.received);
   }
   function remainingQty(w) {
     return Math.max(0, wishCount(w) - claimsOf(w).reduce((sum, c) => sum + c.qty, 0));
@@ -1688,10 +1714,11 @@
   }
 
   function getFilteredWishes() {
-    let list = wishes;
+    let list = showReceived ? wishes.filter(w => w.received) : activeWishes();
     if (currentView === 'mine') list = list.filter(w => w.ownerUid === user.uid);
     if (currentView === 'claimed') list = list.filter(w => myClaimQty(w) > 0);
     if (currentView === 'person' && filterPersonUid) list = list.filter(w => w.ownerUid === filterPersonUid);
+    if (showReceived) return list;
     if (currentPriority) list = list.filter(w => w.priority === currentPriority);
     // Unclaimed also keeps anything you're gifting, even once none are left.
     if (unclaimedOnly) list = list.filter(w => remainingQty(w) > 0 || myClaimQty(w) > 0);
@@ -1753,10 +1780,14 @@
   }
 
   function emptyMessage() {
-    if (currentView === 'mine' && !wishes.some(w => w.ownerUid === user.uid)) return ["You haven't added any wishes yet", 'Add your first wish with the button above!'];
-    if (currentView === 'claimed' && !wishes.some(w => myClaimQty(w) > 0)) return ["You're not gifting anything yet", "Pick something from Everyone's list."];
-    if (!wishes.length) return ['Nothing here yet', 'Add your first wish with the button above!'];
-    if (currentView === 'person' && !wishes.some(w => w.ownerUid === filterPersonUid)) return ['No wishes here yet', "This person hasn't added anything."];
+    const active = activeWishes();
+    const addBtn = `<button class="btn btn-accent" onclick="showAddModal()">+ Add a wish</button>`;
+    if (showReceived) return ['Nothing received yet', 'Mark your wish Received when it arrives, and it moves here.'];
+    if (currentView === 'mine' && !active.some(w => w.ownerUid === user.uid)) return ["You haven't added any wishes yet", 'Add your first one to get started.', addBtn];
+    if (currentView === 'claimed' && !active.some(w => myClaimQty(w) > 0)) return ["You're not gifting anything yet", "Pick something from Everyone's list.",
+      `<button class="btn" onclick="setView('all')">Browse Everyone's list</button>`];
+    if (!active.length) return ['Nothing here yet', 'Add the first wish to get started.', addBtn];
+    if (currentView === 'person' && !active.some(w => w.ownerUid === filterPersonUid)) return ['No wishes here yet', "This person hasn't added anything."];
     if (unclaimedOnly && !currentPriority) return ["Everything's been claimed", 'Choose All to see every wish.'];
     return ['No wishes match', 'Try a different filter, or choose All.'];
   }
@@ -1765,8 +1796,8 @@
     const grid = document.getElementById('items-grid');
     const list = getFilteredWishes();
     if (!list.length) {
-      const [title, hint] = emptyMessage();
-      grid.innerHTML = `<div class="empty-state"><h3>${title}</h3><p>${hint}</p></div>`;
+      const [title, hint, action] = emptyMessage();
+      grid.innerHTML = `<div class="empty-state"><h3>${title}</h3><p>${hint}</p>${action || ''}</div>`;
       return;
     }
     grid.innerHTML = list.map(w => renderCard(w)).join('');
@@ -1812,14 +1843,18 @@
     const qtySelect = `<select class="qty-select" id="qty-${w.id}" aria-label="How many to gift"
         ${maxQty < 2 ? 'disabled' : ''} ${maxQty ? '' : 'style="visibility:hidden"'}
         ${mine ? `onchange="claimWish('${w.id}', this.value)"` : ''}>${qtyOptions(Math.max(maxQty, 1), mine || 1)}</select>`;
-    const claimBtn = isOwner
+    const received = !!w.received;
+    const claimBtn = isOwner || received
       ? ''
       : mine
         ? `${qtySelect}<button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
         : `${qtySelect}<button class="btn btn-sm claim-btn" ${remaining ? '' : 'style="visibility:hidden"'} onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`;
 
-    const editBtn = isOwner
+    const editBtn = isOwner && !received
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
+      : '';
+    const receivedBtn = isOwner
+      ? `<button class="btn btn-sm btn-ghost" onclick="setReceived('${w.id}', ${!received})">${received ? 'Not received' : 'Received'}</button>`
       : '';
     const deleteBtn = (isOwner || isAdmin)
       ? `<button class="btn btn-sm btn-ghost btn-delete" onclick="deleteWish('${w.id}')">Delete</button>`
@@ -1827,10 +1862,10 @@
     const link = safeLink(w.link);
     // Single wishes need no count; the slot stays so the selector never moves.
     const countLabel = isOwner ? 'Wants ' + count : remaining + ' left';
-    const showCount = count > 1 && (isOwner || remaining > 0);
+    const showCount = !received && count > 1 && (isOwner || remaining > 0);
 
     return `
-      <div class="wish-card ${priorityColor(w.priority)} ${!isOwner && !remaining ? 'claimed' : ''} ${mine ? 'gifting' : ''}" id="card-${w.id}">
+      <div class="wish-card ${priorityColor(w.priority)} ${received ? 'received' : !isOwner && !remaining ? 'claimed' : ''} ${mine ? 'gifting' : ''}" id="card-${w.id}">
         ${mine ? `<span class="gift-ribbon" title="You're gifting this" aria-label="You're gifting this">🎀</span>` : ''}
         <span class="wish-owner" title="${esc(memberName(w.ownerUid))}" onclick="showOwnerName('${w.ownerUid}')">${avatarHTML(memberName(w.ownerUid), (members[w.ownerUid] || {}).photoURL, 28)}</span>
         <div class="wish-head">
@@ -1841,14 +1876,17 @@
               : esc(w.name)}</div>
             <div class="wish-card-meta" style="margin-top:0.4rem;">
               <span class="price-tag">${w.price ? esc(displayPrice(w.price)) : '???'}</span>
+              ${w.priority === 'high' ? '<span class="priority-label">High</span>' : ''}
             </div>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
+        ${mine && !received ? `<label class="bought-check"><input type="checkbox" ${myClaim(w).bought ? 'checked' : ''} onchange="setBought('${w.id}', this.checked)"> Bought</label>` : ''}
         <div class="wish-card-actions">
           <span class="tag" ${showCount ? '' : 'style="visibility:hidden"'}>${countLabel}</span>
           ${claimBtn}
           <span style="flex:1"></span>
+          ${receivedBtn}
           ${editBtn}
           ${deleteBtn}
         </div>
@@ -1878,7 +1916,7 @@
     nav.innerHTML = Object.entries(members)
       .sort((a, b) => a[1].name.localeCompare(b[1].name))
       .map(function([uid, m]) {
-        const count = wishes.filter(w => w.ownerUid === uid).length;
+        const count = activeWishes().filter(w => w.ownerUid === uid).length;
         return `<div class="sidebar-item ${currentView === 'person' && filterPersonUid === uid ? 'active' : ''}"
                      onclick="setPersonView('${uid}')">
           ${avatarHTML(m.name, m.photoURL, 22)}
@@ -1887,24 +1925,29 @@
       }).join('');
   }
 
-  // "3 gifts · about $120", noting any gifts that have no price.
+  // "3 gifts · about $120 · 1 to buy", noting any gifts that have no price.
   function giftSummary() {
-    const mine = wishes.filter(w => myClaimQty(w) > 0);
+    const mine = activeWishes().filter(w => myClaimQty(w) > 0);
     if (!mine.length) return "Items you've claimed to gift";
     const gifts = mine.reduce((sum, w) => sum + myClaimQty(w), 0);
     const priced = mine.filter(w => !isNaN(priceAmount(w.price)));
     const total = priced.reduce((sum, w) => sum + priceAmount(w.price) * myClaimQty(w), 0);
     const unpriced = mine.length - priced.length;
+    const toBuy = mine.filter(w => !myClaim(w).bought).reduce((sum, w) => sum + myClaimQty(w), 0);
     return gifts + (gifts === 1 ? ' gift' : ' gifts')
       + (priced.length ? ' · about ' + displayPrice(String(Math.round(total * 100) / 100)) : '')
+      + ' · ' + (toBuy ? toBuy + ' to buy' : 'all bought')
       + (unpriced ? ' · ' + unpriced + (unpriced === 1 ? ' wish' : ' wishes') + ' with no price' : '');
   }
 
   function renderCounts() {
-    document.getElementById('count-all').textContent = wishes.length;
-    document.getElementById('count-mine').textContent = wishes.filter(w => w.ownerUid === user.uid).length;
-    document.getElementById('count-claimed').textContent = wishes.filter(w => myClaimQty(w) > 0).length;
-    if (currentView === 'claimed') document.getElementById('view-subtitle').textContent = giftSummary();
+    const active = activeWishes();
+    document.getElementById('count-all').textContent = active.length;
+    document.getElementById('count-mine').textContent = active.filter(w => w.ownerUid === user.uid).length;
+    document.getElementById('count-claimed').textContent = active.filter(w => myClaimQty(w) > 0).length;
+    const subtitle = document.getElementById('view-subtitle');
+    if (currentView === 'claimed') subtitle.textContent = giftSummary();
+    subtitle.classList.toggle('keep-on-phone', currentView === 'claimed');
   }
 
   // ── Navigation ──
@@ -1941,12 +1984,20 @@
 
   // Unclaimed and a priority can be on together; clicking one again turns it off.
   function setFilter(f) {
-    if (f === 'all') { unclaimedOnly = false; currentPriority = null; }
+    if (f === 'received') showReceived = !showReceived;
+    else if (f === 'all') { showReceived = false; unclaimedOnly = false; currentPriority = null; }
+    else if (showReceived) {
+      // Leaving Received for another filter turns that filter on, never off.
+      showReceived = false;
+      if (f === 'unclaimed') unclaimedOnly = true; else currentPriority = f;
+    }
     else if (f === 'unclaimed') unclaimedOnly = !unclaimedOnly;
     else currentPriority = currentPriority === f ? null : f;
     document.querySelectorAll('.filter-chip').forEach(function(c) {
       const name = c.dataset.filter;
-      c.classList.toggle('active', name === 'all' ? !unclaimedOnly && !currentPriority
+      c.classList.toggle('active', name === 'received' ? showReceived
+        : showReceived ? false
+        : name === 'all' ? !unclaimedOnly && !currentPriority
         : name === 'unclaimed' ? unclaimedOnly : name === currentPriority);
     });
     renderGrid();
@@ -1965,6 +2016,7 @@
     document.getElementById('wish-notes').value = '';
     setFormImage('');
     resetLinkLookup('');
+    document.getElementById('wish-refresh').style.display = 'none';
     document.getElementById('wish-modal').style.display = 'flex';
     document.getElementById('wish-link').focus();
   }
@@ -1983,6 +2035,7 @@
     document.getElementById('wish-notes').value = w.notes || '';
     setFormImage(w.image || '');
     resetLinkLookup(w.link || '');
+    document.getElementById('wish-refresh').style.display = '';
     document.getElementById('wish-modal').style.display = 'flex';
   }
 
@@ -2002,6 +2055,19 @@
 
   let formImage = '';
   function setFormImage(url) {
+    const input = document.getElementById('wish-image-url');
+    input.value = url;
+    delete input.dataset.typed;
+    showFormImage(url);
+  }
+
+  function onImageInput() {
+    const input = document.getElementById('wish-image-url');
+    input.dataset.typed = '1';
+    showFormImage(safeLink(input.value.trim()));
+  }
+
+  function showFormImage(url) {
     formImage = url;
     const img = document.getElementById('wish-image-img');
     img.style.display = '';
@@ -2046,7 +2112,10 @@
     const title = preview && cleanTitle(preview.title, host);
     const gotName = !!title && autofill('wish-name', title);
     const gotPrice = !!(preview && preview.price) && autofill('wish-price', preview.price);
-    setFormImage((preview && preview.image) || '');
+    // An address typed by hand stays unless the store offers an image of its own.
+    if ((preview && preview.image) || !document.getElementById('wish-image-url').dataset.typed) {
+      setFormImage((preview && preview.image) || '');
+    }
 
     const filled = [gotName && 'name', gotPrice && 'price'].filter(Boolean);
     const priceEmpty = !document.getElementById('wish-price').value.trim();
@@ -2056,6 +2125,39 @@
     else setLinkStatus('info', guessed
       ? "Couldn't read " + host + ', so the name was guessed from the link. Check it before saving.'
       : "Couldn't read " + host + '. Fill in the details below.');
+  }
+
+  // Fetches the store's current image and price, and asks before changing what's in the form.
+  async function refreshFromLink() {
+    const url = document.getElementById('wish-link').value.trim();
+    if (!safeLink(url)) { showToast('Add a link first'); return; }
+    const seq = ++lookupSeq;
+    const host = hostOf(url);
+    setLinkStatus('loading', 'Checking ' + host + '...');
+
+    let preview = null;
+    try {
+      preview = await fetchPreview(url);
+    } catch (e) {
+      console.warn('Link refresh failed:', e);
+    }
+    if (seq !== lookupSeq || !isOpen('wish-modal')) return;
+    if (!preview || preview.error) { setLinkStatus('info', "Couldn't read " + host + '. Nothing changed.'); return; }
+
+    const priceInput = document.getElementById('wish-price');
+    const newPrice = preview.price && Number(preview.price) !== Number(priceInput.value) ? preview.price : '';
+    const newImage = preview.image && preview.image !== formImage ? preview.image : '';
+    if (!newPrice && !newImage) { setLinkStatus('info', 'Nothing new on ' + host + '.'); return; }
+
+    const changes = [
+      newPrice && 'price ' + (priceInput.value ? displayPrice(priceInput.value) : '???') + ' → ' + displayPrice(newPrice),
+      newImage && 'a new image'
+    ].filter(Boolean).join(' and ');
+    if (!await askConfirm('Use ' + changes + ' from ' + host + '?')) { setLinkStatus('', ''); return; }
+    if (newPrice) priceInput.value = newPrice;
+    if (newImage) setFormImage(newImage);
+    lastLookupUrl = url;
+    setLinkStatus('ok', 'Updated. Save to keep the changes.');
   }
 
   // Fills a field only if it's empty or still holds an earlier autofill — never over typed text.
@@ -2173,6 +2275,8 @@
       showToast('Price must be a number, like 49.99');
       return;
     }
+    const imageAddress = document.getElementById('wish-image-url').value.trim();
+    if (imageAddress && !safeLink(imageAddress)) { showToast('Image addresses must start with http:// or https://'); return; }
     const count = Number(document.getElementById('wish-count').value);
     if (!Number.isInteger(count) || count < 1 || count > 99) {
       showToast('Count must be a whole number from 1 to 99');
@@ -2211,7 +2315,8 @@
       // Warn if it's been claimed. Owners aren't told who, to keep some of the surprise.
       const claimSnap = await getDocs(claimsCol(gid, id));
       const givers = claimSnap.docs.map(d => d.id).filter(uid => currentGroup().memberUids.includes(uid));
-      if (givers.length) {
+      // Once it's been received, nobody needs warning that it was claimed.
+      if (givers.length && !w.received) {
         const who = w.ownerUid === user.uid
           ? 'Someone'
           : givers.map(uid => uid === user.uid ? 'You' : memberName(uid)).join(', ');
@@ -2246,11 +2351,32 @@
         renderGrid();
         return;
       }
-      await setDoc(claimRef(gid, id, user.uid), { qty, claimedAt: serverTimestamp() });
+      await setDoc(claimRef(gid, id, user.uid), { qty, claimedAt: serverTimestamp() }, { merge: true });
       showToast('🎁 You\'re gifting ' + (wishCount(w) > 1 ? qty + ' of this.' : 'this.'));
     } catch (e) {
       console.error('Claim failed:', e);
       showToast('Failed to claim. Try again.');
+    }
+  }
+
+  // Only the giver's screens show this; the owner's cards never do.
+  async function setBought(id, bought) {
+    try {
+      await updateDoc(claimRef(currentGroupId, id, user.uid), { bought });
+    } catch (e) {
+      console.error('Bought failed:', e);
+      showToast('Failed to save. Try again.');
+      renderGrid();
+    }
+  }
+
+  async function setReceived(id, received) {
+    try {
+      await updateDoc(wishRef(currentGroupId, id), { received });
+      showToast(received ? 'Moved to Received' : 'Back on your wishlist');
+    } catch (e) {
+      console.error('Received failed:', e);
+      showToast('Failed to save. Try again.');
     }
   }
 
@@ -2439,7 +2565,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, showImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, onImageInput, refreshFromLink, setBought, setReceived, showImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
   // ── Boot ──
