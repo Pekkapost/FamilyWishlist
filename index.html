@@ -376,6 +376,11 @@
       font-size: 1.4rem;
     }
     .wish-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+    .wish-head .wish-thumb { width: 96px; height: 96px; }
+    .wish-thumb-empty { filter: grayscale(1); opacity: 0.35; }
+    .wish-thumb-zoom { position: absolute; inset: 0; padding: 0; border: none; background: none; cursor: zoom-in; }
+    .image-modal { max-width: 640px; padding: 1.25rem; text-align: center; }
+    .image-modal img { display: block; width: 100%; max-height: 75vh; object-fit: contain; margin-top: 2rem; background: #fff; border-radius: 8px; }
     .wish-image-preview { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
     .wish-card {
       background: var(--card-bg);
@@ -390,15 +395,16 @@
     }
     .wish-card:hover { border-color: var(--border-strong); }
     .wish-card.claimed { opacity: 0.6; }
-    /* Priority shows as the card's outline. */
-    .wish-card.priority-high { border: 2px solid #DC2626; }
-    .wish-card.priority-medium { border: 2px solid #EAB308; }
-    .wish-card.priority-low { border: 2px solid #3B82F6; }
+    /* Priority shows as a strip on the card's left edge. */
+    .wish-card.priority-high { border-left: 4px solid #DC2626; }
+    .wish-card.priority-medium { border-left: 4px solid #EAB308; }
+    .wish-card.priority-low { border-left: 4px solid #3B82F6; }
+    /* Sits in the count's slot, which is empty once nothing is left. */
     .wish-card.claimed::after {
       content: '✓ Claimed';
       position: absolute;
-      top: 1.15rem;
-      right: 3.2rem;
+      bottom: 1.5rem;
+      left: 1.25rem;
       font-size: 0.72rem;
       font-weight: 500;
       background: var(--green-bg);
@@ -413,13 +419,13 @@
       font-weight: 600;
       color: var(--ink);
       line-height: 1.3;
-      /* One line, clear of the owner's icon; longer names end in "…" (full name on hover). */
+      /* Two lines, clear of the owner's icon; longer names end in "…" (full name on hover). */
       padding-right: 2.5rem;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
-    .wish-card.claimed .wish-card-title { padding-right: 8rem; }
     .wish-owner {
       position: absolute;
       top: 1.1rem;
@@ -512,10 +518,9 @@
       flex-shrink: 0;
     }
     .claim-btn { width: 7.5rem; height: 28px; line-height: 1; white-space: nowrap; padding: 0; }
-    .own-item-badge {
-      font-size: 0.7rem;
-      color: var(--ink-muted);
-    }
+    .btn-delete:hover { background: var(--accent-light); color: var(--accent); }
+    /* No hover on touch screens, so Delete stays faintly red there. */
+    @media (hover: none) { .btn-delete { color: #A8604A; } }
 
     /* ── Empty state ── */
     .empty-state {
@@ -754,6 +759,7 @@
       .content { padding: 1rem; }
       .content-header { flex-wrap: wrap; gap: 0.75rem; }
       .claim-btn { width: 6rem; }
+      .wish-head .wish-thumb { width: 80px; height: 80px; }
       #setup-screen { margin: 2rem 1rem; padding: 2rem 1.5rem; }
     }
   </style>
@@ -1002,6 +1008,14 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('profile-modal')">Done</button>
     </div>
+  </div>
+</div>
+
+<!-- Image Viewer -->
+<div class="modal-overlay" id="image-modal" style="display:none;" onclick="closeModalIfOutside(event, 'image-modal')">
+  <div class="modal image-modal">
+    <button class="modal-close" aria-label="Close" title="Close" onclick="closeModal('image-modal')">×</button>
+    <img id="image-modal-img" alt="">
   </div>
 </div>
 
@@ -1782,7 +1796,7 @@
         ${maxQty < 2 ? 'disabled' : ''} ${maxQty ? '' : 'style="visibility:hidden"'}
         ${mine ? `onchange="claimWish('${w.id}', this.value)"` : ''}>${qtyOptions(Math.max(maxQty, 1), mine || 1)}</select>`;
     const claimBtn = isOwner
-      ? `<span class="own-item-badge">Your wish</span>`
+      ? ''
       : mine
         ? `${qtySelect}<button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
         : `${qtySelect}<button class="btn btn-sm claim-btn" ${remaining ? '' : 'style="visibility:hidden"'} onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`;
@@ -1791,16 +1805,19 @@
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
       : '';
     const deleteBtn = (isOwner || isAdmin)
-      ? `<button class="btn btn-sm btn-ghost" style="color:var(--accent)" onclick="deleteWish('${w.id}')">Delete</button>`
+      ? `<button class="btn btn-sm btn-ghost btn-delete" onclick="deleteWish('${w.id}')">Delete</button>`
       : '';
     const link = safeLink(w.link);
+    // Single wishes need no count; the slot stays so the selector never moves.
+    const countLabel = isOwner ? 'Wants ' + count : remaining + ' left';
+    const showCount = count > 1 && (isOwner || remaining > 0);
 
     return `
       <div class="wish-card ${priorityColor(w.priority)} ${!isOwner && !remaining ? 'claimed' : ''} ${mine ? 'gifting' : ''}" id="card-${w.id}">
         ${mine ? `<span class="gift-ribbon" title="You're gifting this" aria-label="You're gifting this">🎀</span>` : ''}
         <span class="wish-owner" title="${esc(memberName(w.ownerUid))}" onclick="showOwnerName('${w.ownerUid}')">${avatarHTML(memberName(w.ownerUid), (members[w.ownerUid] || {}).photoURL, 28)}</span>
         <div class="wish-head">
-          <span class="wish-thumb">🎁${w.image ? `<img src="${esc(imageSrc(w.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>
+          <span class="wish-thumb"><span class="wish-thumb-empty">🎁</span>${w.image ? `<button class="wish-thumb-zoom" aria-label="View larger image" title="View larger image" onclick="showImage('${w.id}')"><img src="${esc(imageSrc(w.image))}" alt="" loading="lazy" onerror="this.parentElement.remove()"></button>` : ''}</span>
           <div class="wish-head-text">
             <div class="wish-card-title" title="${esc(w.name)}">${link
               ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
@@ -1812,13 +1829,22 @@
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
         <div class="wish-card-actions">
-          <span class="tag">Count: ${isOwner ? count : remaining}</span>
+          <span class="tag" ${showCount ? '' : 'style="visibility:hidden"'}>${countLabel}</span>
           ${claimBtn}
           <span style="flex:1"></span>
           ${editBtn}
           ${deleteBtn}
         </div>
       </div>`;
+  }
+
+  function showImage(id) {
+    const w = wishes.find(x => x.id === id);
+    if (!w || !w.image) return;
+    const img = document.getElementById('image-modal-img');
+    img.src = imageSrc(w.image);
+    img.alt = w.name;
+    document.getElementById('image-modal').style.display = 'flex';
   }
 
   function showOwnerName(uid) {
@@ -2259,7 +2285,7 @@
   }
 
   document.addEventListener('click', e => { if (!e.target.closest('.menu')) closeMenus(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenus(); closeModal('image-modal'); } });
 
   function openProfile() {
     renderProfile();
@@ -2396,7 +2422,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, showImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
   // ── Boot ──
