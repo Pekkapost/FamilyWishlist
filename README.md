@@ -145,7 +145,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile** and **Sign out**. |
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
-| **Wish Grid** | Wide card per wish: one-line name, the owner's picture in the top right (name on hover), priority dot, price, notes, and the count at the bottom left. When a wish has a link, its name is the link. Filter chips above the grid. |
+| **Wish Grid** | Wide card per wish: one-line name, the owner's picture in the top right (name on hover), priority dot, price, notes, and the count at the bottom left. Sorted high to low priority, oldest first within each. When a wish has a link, its name is the link. Filter chips above the grid. |
 | **Add/Edit Modal** | Link first — paste one and the name (and price, when the store publishes it) fill in automatically. Then item name, approximate price (a number — cards show it as `$49.99`), count, priority, and notes. Closes with × or Cancel, not by clicking outside it. |
 | **Manage Groups** | Admin-only. Create Groups, see each one's invite code and members, and manage them. |
 
