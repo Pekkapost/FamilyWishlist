@@ -1222,7 +1222,7 @@
     }, onListenError);
   }
 
-  // One listener per wish that isn't yours — the rules never let you read claims on your own wishes.
+  // One listener per wish that isn't yours, so your own cards never show claims.
   function syncClaimListeners() {
     const gid = currentGroupId;
     const wanted = new Set(wishes.filter(w => w.ownerUid !== user.uid).map(w => w.id));
@@ -1542,8 +1542,7 @@
     }
   }
 
-  // Resets a Group for next year: wishes stay, everyone's claims go. Admins can't read
-  // claims on their own wishes, so this deletes by id without looking at them.
+  // Resets a Group for next year: wishes stay, everyone's claims go.
   async function clearClaims(gid) {
     const g = adminGroups.find(x => x.id === gid);
     if (!g) return;
@@ -1630,7 +1629,7 @@
     return Math.max(0, wishCount(w) - claimsOf(w).reduce((sum, c) => sum + c.qty, 0));
   }
 
-  // The owner can't read claims, so these are blind deletes, one per person who might have claimed.
+  // Deletes by id, one per person who might have claimed, without reading the claims first.
   function deleteClaimOps(gid, wid, uids) {
     return uids.map(uid => b => b.delete(claimRef(gid, wid, uid)));
   }
@@ -2118,9 +2117,20 @@
   }
 
   async function deleteWish(id) {
-    if (!await askConfirm('Remove this wish?')) return;
+    const w = wishes.find(x => x.id === id);
+    if (!w) return;
+    if (!await askConfirm('Delete "' + w.name + '"?')) return;
     const gid = currentGroupId;
     try {
+      // Warn if it's been claimed. Owners aren't told who, to keep some of the surprise.
+      const claimSnap = await getDocs(claimsCol(gid, id));
+      const givers = claimSnap.docs.map(d => d.id).filter(uid => currentGroup().memberUids.includes(uid));
+      if (givers.length) {
+        const who = w.ownerUid === user.uid
+          ? 'Someone'
+          : givers.map(uid => uid === user.uid ? 'You' : memberName(uid)).join(', ');
+        if (!await askConfirm(who + ' claimed this gift. Are you sure you want to delete it?')) return;
+      }
       const batch = writeBatch(fb.db);
       deleteClaimOps(gid, id, currentGroup().memberUids).forEach(op => op(batch));
       batch.delete(wishRef(gid, id));

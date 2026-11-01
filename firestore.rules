@@ -118,8 +118,9 @@ service cloud.firestore {
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'createdAt']);
         allow delete: if isAdmin() || (isMember(gid) && resource.data.ownerUid == request.auth.uid);
 
-        // ── Claims ── one doc per giver, id = their user id. The wish's owner is always
-        // refused, so whether anyone is gifting it stays a surprise. The app checks what's
+        // ── Claims ── one doc per giver, id = their user id. Any member can read them; the
+        // app only shows an owner that a wish was claimed when they go to delete it, without
+        // saying who, but owners aren't technically blocked from reading. The app checks what's
         // left before claiming; rules can't add up other givers, so only each giver's own
         // quantity is capped here.
         match /claims/{giver} {
@@ -127,7 +128,7 @@ service cloud.firestore {
             return get(/databases/$(database)/documents/groups/$(gid)/wishes/$(wid)).data;
           }
 
-          allow read: if isMember(gid) && wishData().ownerUid != request.auth.uid;
+          allow read: if isMember(gid);
           allow create, update: if isMember(gid)
             && giver == request.auth.uid
             && wishData().ownerUid != request.auth.uid

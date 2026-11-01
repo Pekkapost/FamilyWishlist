@@ -134,7 +134,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 |---|---|
 | **Anyone signed in** | Look up an invite code they already have. Join that code's Group under their own user id. |
 | **Group members** | Read the Group's members and wishes. Add, edit, and delete their own wishes. Claim other people's wishes, choosing how many, and unclaim them. Change their own display name and profile picture (only to a Google photo or a small JPEG). Leave. |
-| **Wish owners** | Never read claims on their own wishes — the surprise is enforced by the server, not hidden in the page. |
+| **Wish owners** | Don't see claims on their own cards. Deleting a claimed wish warns "Someone claimed this gift" without saying who. The server doesn't block owners from reading claims, so this relies on the app. |
 | **Admins** | Create and delete Groups, create and replace invite codes, remove members, delete any wish. |
 
 ## Features
@@ -178,7 +178,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead. |
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
-| **Console access** | The surprise is enforced for app users. Whoever owns the Firebase project can still see every claim in the console. |
+| **Surprise** | Enforced by the app, not the server: a family member with technical skills could read claims on their own wishes. Whoever owns the Firebase project can also see every claim in the console. |
 | **Removed gifts** | If a wish you're gifting is deleted, you get a notice, but only in a browser that had already seen your claim. |
 | **Backups** | Firebase's free plan has no automatic backups; use **Export backup**. |
 | **Count** | Rules cap each giver at the wish's count but can't add up givers. The app rechecks before saving, so only near-simultaneous claims can go over. If an owner lowers a count, existing claims stay. |
