@@ -477,14 +477,8 @@
       z-index: 1;
     }
     .wish-card.gifting { opacity: 1; }
-    .claimed-line { min-height: 1.2rem; line-height: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .wish-card-actions .tag { white-space: nowrap; flex-shrink: 0; }
     .claim-btn { width: 7.5rem; height: 28px; line-height: 1; white-space: nowrap; padding: 0; }
-    .claimed-by {
-      font-size: 0.75rem;
-      color: var(--green);
-      font-weight: 500;
-    }
     .own-item-badge {
       font-size: 0.7rem;
       color: var(--ink-muted);
@@ -1633,10 +1627,6 @@
     const count = wishCount(w);
     const mine = myClaimQty(w);
     const remaining = remainingQty(w);
-    const claimers = claimsOf(w);
-    const claimerText = claimers
-      .map(c => esc(c.uid === user.uid ? 'You' : memberName(c.uid)) + (count > 1 ? ' (' + c.qty + ')' : ''))
-      .join(', ');
     const qtyOptions = (max, selected) => Array.from({ length: max }, (_, i) =>
       `<option value="${i + 1}" ${i + 1 === selected ? 'selected' : ''}>${i + 1}</option>`).join('');
 
@@ -1651,11 +1641,6 @@
       : mine
         ? `${qtySelect}<button class="btn btn-sm claim-btn" onclick="unclaimWish('${w.id}')">Unclaim</button>`
         : `${qtySelect}<button class="btn btn-sm claim-btn" ${remaining ? '' : 'style="visibility:hidden"'} onclick="claimFromSelect('${w.id}')">🎁 I'll gift this</button>`;
-    // Always on the card, blank until someone claims, so claiming doesn't change its height.
-    const claimedText = claimers.length
-      ? 'Claimed by ' + claimerText + (remaining ? ' · ' + remaining + ' left' : '')
-      : '';
-    const claimedLine = `<div class="claimed-by claimed-line" title="${claimedText}">${claimedText}</div>`;
 
     const editBtn = isOwner
       ? `<button class="btn btn-sm btn-ghost" onclick="editWish('${w.id}')">Edit</button>`
@@ -1679,9 +1664,8 @@
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
-        ${claimedLine}
         <div class="wish-card-actions">
-          <span class="tag">Count: ${count}</span>
+          <span class="tag">Count: ${isOwner ? count : remaining}</span>
           ${claimBtn}
           <span style="flex:1"></span>
           ${editBtn}
