@@ -19,7 +19,7 @@ FamilyWishlist/
 |---|---|---|
 | [Firebase Authentication](https://firebase.google.com/docs/auth) | JS SDK 10.12.2 | Google sign-in |
 | [Cloud Firestore](https://firebase.google.com/docs/firestore) | JS SDK 10.12.2 | Groups, members, wishes, and claims, with live updates |
-| [Cloudflare Workers](https://developers.cloudflare.com/workers/) | Free plan | Reads a pasted link's page title and price to fill in a wish |
+| [Cloudflare Workers](https://developers.cloudflare.com/workers/) | Free plan | Reads a pasted link's page title, price, and image, and serves images to the app |
 | [Google Fonts](https://fonts.google.com/) | — | Lora (headings) + DM Sans (body) |
 | HTML / CSS / JavaScript | — | No framework, no build step |
 
@@ -179,6 +179,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Surprise** | Enforced by the app, not the server: a family member with technical skills could read claims on their own wishes. Whoever owns the Firebase project can also see every claim in the console. |
+| **Images** | Filled in only where the Worker can read the store, and not for wishes added earlier unless their link is pasted again. Images load through the Worker, which serves only the app's own pages. |
 | **Removed gifts** | If a wish you're gifting is deleted, you get a notice, but only in a browser that had already seen your claim. |
 | **Backups** | Firebase's free plan has no automatic backups; use **Export backup**. |
 | **Count** | Rules cap each giver at the wish's count but can't add up givers. The app rechecks before saving, so only near-simultaneous claims can go over. If an owner lowers a count, existing claims stay. |

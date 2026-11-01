@@ -99,7 +99,8 @@ service cloud.firestore {
       // ── Wishes ──
       match /wishes/{wid} {
         function validWish(d) {
-          return d.keys().hasOnly(['name', 'price', 'count', 'priority', 'link', 'notes', 'ownerUid', 'createdAt'])
+          return d.keys().hasOnly(['name', 'price', 'count', 'priority', 'link', 'notes', 'image', 'ownerUid', 'createdAt'])
+            && (!('image' in d) || d.image == '' || (isText(d.image, 2000) && d.image.matches('(?i)https?://.+')))
             && (!('count' in d) || (d.count is int && d.count >= 1 && d.count <= 99))
             && isText(d.name, 200) && d.name.size() > 0
             && d.price is string && (d.price == '' || d.price.matches('[0-9]{1,7}([.][0-9]{1,2})?'))

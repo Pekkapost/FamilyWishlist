@@ -359,6 +359,24 @@
       grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
       gap: 1rem;
     }
+    .wish-head { display: flex; gap: 0.85rem; align-items: center; min-width: 0; }
+    .wish-head-text { flex: 1; min-width: 0; }
+    .wish-thumb {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--tag-bg);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .wish-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+    .wish-image-preview { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
     .wish-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -885,6 +903,10 @@
       <input type="url" id="wish-link" maxlength="2000" placeholder="Paste a link to fill in the details"
              onpaste="onLinkPaste()" onchange="onLinkChange()" />
       <div class="link-status" id="link-status"></div>
+      <div class="wish-image-preview" id="wish-image-preview" style="display:none;">
+        <span class="wish-thumb"><img id="wish-image-img" alt="" onerror="this.style.display='none'"></span>
+        <button class="btn btn-sm btn-ghost" onclick="setFormImage('')">Remove image</button>
+      </div>
     </div>
     <div class="form-group">
       <label>Item name *</label>
@@ -1777,12 +1799,15 @@
       <div class="wish-card ${priorityColor(w.priority)} ${!isOwner && !remaining ? 'claimed' : ''} ${mine ? 'gifting' : ''}" id="card-${w.id}">
         ${mine ? `<span class="gift-ribbon" title="You're gifting this" aria-label="You're gifting this">🎀</span>` : ''}
         <span class="wish-owner" title="${esc(memberName(w.ownerUid))}" onclick="showOwnerName('${w.ownerUid}')">${avatarHTML(memberName(w.ownerUid), (members[w.ownerUid] || {}).photoURL, 28)}</span>
-        <div>
-          <div class="wish-card-title" title="${esc(w.name)}">${link
-            ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
-            : esc(w.name)}</div>
-          <div class="wish-card-meta" style="margin-top:0.4rem;">
-            <span class="price-tag">${w.price ? esc(displayPrice(w.price)) : '???'}</span>
+        <div class="wish-head">
+          <span class="wish-thumb">🎁${w.image ? `<img src="${esc(imageSrc(w.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>
+          <div class="wish-head-text">
+            <div class="wish-card-title" title="${esc(w.name)}">${link
+              ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(w.name)}</a>`
+              : esc(w.name)}</div>
+            <div class="wish-card-meta" style="margin-top:0.4rem;">
+              <span class="price-tag">${w.price ? esc(displayPrice(w.price)) : '???'}</span>
+            </div>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
@@ -1895,6 +1920,7 @@
     document.getElementById('wish-priority').value = 'medium';
     document.getElementById('wish-link').value = '';
     document.getElementById('wish-notes').value = '';
+    setFormImage('');
     resetLinkLookup('');
     document.getElementById('wish-modal').style.display = 'flex';
     document.getElementById('wish-link').focus();
@@ -1912,6 +1938,7 @@
     document.getElementById('wish-priority').value = w.priority;
     document.getElementById('wish-link').value = w.link || '';
     document.getElementById('wish-notes').value = w.notes || '';
+    setFormImage(w.image || '');
     resetLinkLookup(w.link || '');
     document.getElementById('wish-modal').style.display = 'flex';
   }
@@ -1924,6 +1951,20 @@
   const JUNK_TITLE = /access denied|robot check|robot or human|captcha|attention required|just a moment|not found|page unavailable|sign in|log in|are you a (human|robot)/i;
   let lookupSeq = 0;
   let lastLookupUrl = '';
+
+  // Images always load through the Worker, so stores don't see family members' browsers.
+  function imageSrc(url) {
+    return LOOKUP_ENDPOINT + 'image?url=' + encodeURIComponent(url);
+  }
+
+  let formImage = '';
+  function setFormImage(url) {
+    formImage = url;
+    const img = document.getElementById('wish-image-img');
+    img.style.display = '';
+    if (url) img.src = imageSrc(url); else img.removeAttribute('src');
+    document.getElementById('wish-image-preview').style.display = url ? 'flex' : 'none';
+  }
 
   function resetLinkLookup(url) {
     lookupSeq++;
@@ -1962,6 +2003,7 @@
     const title = preview && cleanTitle(preview.title, host);
     const gotName = !!title && autofill('wish-name', title);
     const gotPrice = !!(preview && preview.price) && autofill('wish-price', preview.price);
+    setFormImage((preview && preview.image) || '');
 
     const filled = [gotName && 'name', gotPrice && 'price'].filter(Boolean);
     const priceEmpty = !document.getElementById('wish-price').value.trim();
@@ -1997,7 +2039,7 @@
       const body = await res.json();
       if (body.status !== 'success') return { error: body.code || 'EFAIL' };
       const d = body.data || {};
-      return { title: fixMojibake(d.title || ''), price: dollarAmount(d.price, d.currency) };
+      return { title: fixMojibake(d.title || ''), price: dollarAmount(d.price, d.currency), image: safeLink(d.image) };
     } finally {
       clearTimeout(timer);
     }
@@ -2100,7 +2142,8 @@
       count,
       priority: document.getElementById('wish-priority').value,
       link: link.slice(0, 2000),
-      notes: document.getElementById('wish-notes').value.trim().slice(0, 1000)
+      notes: document.getElementById('wish-notes').value.trim().slice(0, 1000),
+      image: formImage.length <= 2000 ? formImage : ''
     };
     const gid = currentGroupId;
     const id = editingId;
@@ -2353,7 +2396,7 @@
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
-    closeModal, closeModalIfOutside, toggleMenu, closeMenus, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
+    closeModal, closeModalIfOutside, toggleMenu, closeMenus, setFormImage, showOwnerName, clearClaims, exportBackup, openProfile, onProfileFile, saveProfilePhoto, saveProfileName
   });
 
   // ── Boot ──

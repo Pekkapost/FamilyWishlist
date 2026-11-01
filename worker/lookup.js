@@ -1,7 +1,8 @@
 // Cloudflare Worker for Family Wishlist link autofill.
 //
-//   GET /?url=<product page>  →  { status: 'success', data: { title, price, currency } }
+//   GET /?url=<product page>  →  { status: 'success', data: { title, price, currency, image } }
 //                                { status: 'fail', code }
+//   GET /image?url=<image>    →  the image, so stores never see family members' browsers
 //
 // Fetches the page from Cloudflare's network (never the visitor's) and returns only a
 // name and price, so it can't be used as an open proxy. Only the app's own origins get
@@ -14,7 +15,9 @@ const ALLOWED_ORIGINS = [
 ];
 const FETCH_TIMEOUT_MS = 8000;
 const CACHE_SECONDS = 6 * 60 * 60;
-const CACHE_VERSION = 2;  // bump when parsing changes, so older cached answers are ignored
+const CACHE_VERSION = 3;  // bump when parsing changes, so older cached answers are ignored
+const IMAGE_CACHE_SECONDS = 7 * 24 * 60 * 60;
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 const BLOCKED_TITLE = /robot check|robot or human|captcha|access denied|attention required|just a moment|are you a (human|robot)|page not found/i;
 
@@ -24,9 +27,12 @@ const AMAZON_PRICE_SELECTORS = [
   '#corePrice_feature_div .a-offscreen',
   '#apex_desktop .a-offscreen'
 ];
+const AMAZON_IMAGE_SELECTOR = '#landingImage';
 
 export default {
   async fetch(request, env, ctx) {
+    if (new URL(request.url).pathname === '/image') return serveImage(request, ctx);
+
     const origin = request.headers.get('Origin') || '';
     if (!ALLOWED_ORIGINS.includes(origin)) return json({ status: 'fail', code: 'EORIGIN' }, 403);
     const cors = { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' };
@@ -57,6 +63,47 @@ export default {
     return json(result, 200, cors);
   }
 };
+
+// <img> requests carry no Origin header, so the Referer is what limits this to the app.
+// Only real images come back, never pages or SVGs, so it can't be used as an open proxy.
+async function serveImage(request, ctx) {
+  const referer = request.headers.get('Referer') || '';
+  if (!ALLOWED_ORIGINS.some(origin => referer === origin || referer.startsWith(origin + '/'))) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  const target = parseTarget(new URL(request.url).searchParams.get('url'));
+  if (!target) return new Response('Bad image address', { status: 400 });
+
+  const cache = caches.default;
+  const cacheKey = new Request('https://image-cache.invalid/' + encodeURIComponent(target.href));
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
+  let res;
+  try {
+    res = await fetch(target.href, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'image/*' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+    });
+  } catch (e) {
+    return new Response('Could not fetch image', { status: 502 });
+  }
+  const type = (res.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+  if (!res.ok || !type.startsWith('image/') || type.includes('svg')) return new Response('Not an image', { status: 415 });
+  const bytes = await res.arrayBuffer();
+  if (bytes.byteLength > IMAGE_MAX_BYTES) return new Response('Image too large', { status: 413 });
+
+  const out = new Response(bytes, {
+    headers: {
+      'Content-Type': type,
+      'Cache-Control': 'public, max-age=' + IMAGE_CACHE_SECONDS,
+      'X-Content-Type-Options': 'nosniff'
+    }
+  });
+  ctx.waitUntil(cache.put(cacheKey, out.clone()));
+  return out;
+}
 
 function json(body, status, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -101,15 +148,26 @@ async function lookup(url) {
     data: {
       title,
       price: offer ? String(offer.price).trim() : null,
-      currency: offer ? (offer.currency || '').toUpperCase() : null
+      currency: offer ? (offer.currency || '').toUpperCase() : null,
+      image: absoluteUrl(page.amazonImage || page.ogImage, res.url)
     }
   };
+}
+
+function absoluteUrl(raw, base) {
+  if (!raw) return null;
+  try {
+    const url = new URL(decodeEntities(raw), base);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // Streams the page through HTMLRewriter, keeping only the bits needed — cheap even for
 // Amazon's ~2 MB product pages.
 async function readPage(res) {
-  const page = { title: '', ogTitle: '', productTitle: '', metaPrice: '', metaCurrency: '', amazonPrice: '', jsonLd: [] };
+  const page = { title: '', ogTitle: '', productTitle: '', metaPrice: '', metaCurrency: '', amazonPrice: '', ogImage: '', amazonImage: '', jsonLd: [] };
   const firstText = key => {
     let active = false;
     return {
@@ -127,9 +185,13 @@ async function readPage(res) {
         const content = el.getAttribute('content') || '';
         if (!content) return;
         if (key === 'og:title' && !page.ogTitle) page.ogTitle = content;
+        if ((key === 'og:image' || key === 'og:image:secure_url' || key === 'twitter:image') && !page.ogImage) page.ogImage = content;
         if ((key === 'product:price:amount' || key === 'og:price:amount' || key === 'price') && !page.metaPrice) page.metaPrice = content;
         if ((key === 'product:price:currency' || key === 'og:price:currency' || key === 'pricecurrency') && !page.metaCurrency) page.metaCurrency = content;
       }
+    })
+    .on(AMAZON_IMAGE_SELECTOR, {
+      element(el) { page.amazonImage = page.amazonImage || el.getAttribute('data-old-hires') || el.getAttribute('src') || ''; }
     })
     .on('script[type="application/ld+json"]', {
       element() { page.jsonLd.push(''); },
