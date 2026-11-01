@@ -1674,7 +1674,7 @@
             : esc(w.name)}</div>
           <div class="wish-card-meta" style="margin-top:0.4rem;">
             <span class="priority-dot ${priorityColor(w.priority)}"></span>
-            ${w.price ? `<span class="price-tag">${esc(displayPrice(w.price))}</span>` : ''}
+            <span class="price-tag">${w.price ? esc(displayPrice(w.price)) : '???'}</span>
           </div>
         </div>
         ${w.notes ? `<div class="wish-card-note">${esc(w.notes)}</div>` : ''}
