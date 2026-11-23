@@ -32,7 +32,7 @@ Everything fits on Firebase's free **Spark** plan — no billing account needed.
 ### **1. Create a Firebase project**
 
 1. Go to the [Firebase console](https://console.firebase.google.com/) and click **Create a project**. Google Analytics is not needed.
-2. **Build → Authentication → Get started → Sign-in method** → enable **Google**, pick a support email, and save.
+2. **Build → Authentication → Get started → Sign-in method** → enable **Google**, pick a support email, and save. Then enable **Email/Password** too (leave *Email link* off), for family members without a Google account.
 3. **Build → Firestore Database → Create database**. Pick a location near you and start in **production mode**.
 
 ### **2. Publish the security rules**
@@ -141,7 +141,7 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 
 | Surface | Summary |
 |---|---|
-| **Setup Screen** | Sign in with Google, join from an invite link or code, or (admins) create the first Group. |
+| **Setup Screen** | Sign in with Google, or with an email and password (*Create account* the first time, *Forgot password?* for a reset email). Then join from an invite link or code, or (admins) create the first Group. |
 | **Header** | The current Group's name, which opens a menu to switch Groups, *+ Join with code…*, and (admins) **⚙ Manage Groups** · your picture and name, which open a menu with **Profile**, **Settings**, and **Sign out**. |
 | **Profile** | Change the name shown to family; upload a picture, switch back to your Google photo, or remove it to show your initials. Pictures show in the header and the Family list. |
 | **Sidebar** | **Browse** views with counts · **Family** list of the current Group's members · *Leave this Group*. |
@@ -176,7 +176,8 @@ groups/{groupId}                  # { name, createdBy, createdAt, memberUids[] }
 |---|---|
 | **Invite codes** | Codes don't expire. Anyone holding a code can join until you replace it with *New code*. |
 | **Admins** | Added by hand in the Firebase console (Setup step 5). There is no in-app admin management. |
-| **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead. |
+| **Sign-in in app browsers** | Google blocks sign-in inside some in-app browsers (e.g. links opened from Messenger or Instagram). Open the link in Chrome or Safari instead, or use email sign-in. |
+| **Email accounts** | Email addresses aren't verified, so anyone can make an account with any address. They still need an invite code to see anything. |
 | **Phones** | Below 680 px wide the sidebar becomes one row of chips that scrolls sideways. |
 | **Deletes** | Removing a member or deleting a Group runs from the admin's browser in batches. If it's interrupted, run it again to finish. |
 | **Surprise** | Enforced by the app, not the server: a family member with technical skills could read claims on their own wishes, including whether a gift was bought. Whoever owns the Firebase project can also see every claim in the console. |

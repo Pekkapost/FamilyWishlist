@@ -299,6 +299,20 @@
       height: 1px;
       background: var(--border);
     }
+    .email-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .email-actions .btn { flex: 1; }
+    .link-btn {
+      border: none;
+      background: none;
+      padding: 0;
+      margin-top: 1rem;
+      font: inherit;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .link-btn:hover { color: var(--accent); }
     .config-note {
       margin-top: 1.5rem;
       padding: 1rem;
@@ -896,6 +910,22 @@
   <!-- Mode: SIGN IN -->
   <div id="mode-signin" style="display:none;">
     <button class="btn btn-primary" style="width:100%;" onclick="signIn()">Sign in with Google →</button>
+    <div class="divider">or use email</div>
+    <form id="email-form" onsubmit="event.preventDefault(); emailSignIn()">
+      <div class="form-group">
+        <label for="email-input">Email</label>
+        <input type="email" id="email-input" autocomplete="username" maxlength="200" required />
+      </div>
+      <div class="form-group">
+        <label for="password-input">Password</label>
+        <input type="password" id="password-input" autocomplete="current-password" minlength="6" maxlength="200" required />
+      </div>
+      <div class="email-actions">
+        <button type="submit" class="btn btn-primary">Sign in</button>
+        <button type="button" class="btn" onclick="emailCreateAccount()">Create account</button>
+      </div>
+    </form>
+    <button type="button" class="link-btn" onclick="emailResetPassword()">Forgot password?</button>
   </div>
 
   <!-- Mode: JOIN — holding a valid invite code -->
@@ -1200,7 +1230,8 @@
   import { firebaseConfig } from './config.js';
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
@@ -1296,7 +1327,66 @@
     }
   }
 
+  // ── Email sign-in ── for people without a Google account. Joining still needs an invite.
+  function emailFields() {
+    const email = document.getElementById('email-input').value.trim();
+    const password = document.getElementById('password-input').value;
+    if (!email || !password) { showToast('Enter your email and password'); return null; }
+    return { email, password };
+  }
+
+  // Firebase hides whether an email has an account, so wrong email and wrong password read the same.
+  function emailError(e) {
+    const messages = {
+      'auth/invalid-credential': "That email and password don't match. Try again, or reset your password.",
+      'auth/wrong-password': "That email and password don't match. Try again, or reset your password.",
+      'auth/user-not-found': "That email and password don't match. Try again, or reset your password.",
+      'auth/invalid-email': "That doesn't look like an email address.",
+      'auth/email-already-in-use': 'That email already has an account. Sign in instead.',
+      'auth/weak-password': 'Passwords need at least 6 characters.',
+      'auth/too-many-requests': 'Too many tries. Wait a few minutes, or reset your password.',
+      'auth/operation-not-allowed': "Email sign-in isn't turned on for this app yet."
+    };
+    if (!messages[e.code]) console.error('Email sign-in failed:', e);
+    showToast(messages[e.code] || 'Sign-in failed. Try again.');
+  }
+
+  async function emailSignIn() {
+    const f = emailFields();
+    if (!f) return;
+    try {
+      await signInWithEmailAndPassword(fb.auth, f.email, f.password);
+    } catch (e) {
+      emailError(e);
+    }
+  }
+
+  async function emailCreateAccount() {
+    const f = emailFields();
+    if (!f) return;
+    if (f.password.length < 6) { showToast('Passwords need at least 6 characters.'); return; }
+    try {
+      await createUserWithEmailAndPassword(fb.auth, f.email, f.password);
+    } catch (e) {
+      emailError(e);
+    }
+  }
+
+  async function emailResetPassword() {
+    const email = document.getElementById('email-input').value.trim();
+    if (!email) { showToast('Enter your email first'); return; }
+    try {
+      await sendPasswordResetEmail(fb.auth, email);
+    } catch (e) {
+      if (e.code === 'auth/invalid-email') { emailError(e); return; }
+      console.warn('Password reset failed:', e);
+    }
+    // Same answer either way, so this can't be used to check who has an account.
+    showToast('If that email has an account, a reset link is on its way.');
+  }
+
   function signOutUser() {
+    document.getElementById('password-input').value = '';
     signOut(fb.auth);
   }
 
@@ -2732,7 +2822,7 @@
 
   // Inline onclick handlers need these on window, since module scope isn't global.
   Object.assign(window, {
-    signIn, signOutUser, handleJoin, cancelJoin, joinWithCode, showJoinModal, pickGroup, leaveGroup,
+    signIn, emailSignIn, emailCreateAccount, emailResetPassword, signOutUser, handleJoin, cancelJoin, joinWithCode, showJoinModal, pickGroup, leaveGroup,
     createGroup, openAdmin, rotateInvite, removeMember, deleteGroup, copyInvite,
     setView, setPersonView, setFilter,
     showAddModal, editWish, saveWish, deleteWish, claimWish, unclaimWish, claimFromSelect, onLinkPaste, onLinkChange,
